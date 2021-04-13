@@ -1,0 +1,25 @@
+config:
+  namespace: Game
+
+GraphicsSettings:
+  _flags:
+    - not_a_component
+    - json_with_keys
+
+  imGuiFont: [string, "assets/fonts/ruda/Ruda-Bold.ttf"]
+
+KeyInputSettings:
+  _flags:
+    - not_a_component
+    - json_with_keys
+
+  retryLevel: [ KeyInput::Key, GLFW_KEY_R ]
+
+Settings:
+  _flags:
+    - not_a_component
+    - json_with_keys
+
+  graphics: GraphicsSettings
+  keyInput: KeyInputSettings
+  customSettings: [ json, json::object() ]
