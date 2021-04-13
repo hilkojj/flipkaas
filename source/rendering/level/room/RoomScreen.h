@@ -5,6 +5,9 @@
 #include <gu/screen.h>
 #include <gl_includes.h>
 #include <graphics/3d/debug_line_renderer.h>
+#include <graphics/camera.h>
+#include "EntityInspector3D.h"
+#include "../../../level/room/Room3D.h"
 
 class RoomScreen : public Screen
 {
@@ -12,11 +15,13 @@ class RoomScreen : public Screen
 
     DebugLineRenderer lineRenderer;
 
+    EntityInspector3D inspector;
+
   public:
 
-    Room *room;
+    Room3D *room;
 
-    RoomScreen(Room *room, bool showRoomEditor=false);
+    RoomScreen(Room3D *room, bool showRoomEditor=false);
 
     void render(double deltaTime) override;
 

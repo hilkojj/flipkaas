@@ -23,7 +23,7 @@ class LevelScreen : public Screen
 
     void onResize() override;
 
-    void showRoom(Room *);
+    void showRoom(Room3D *);
 
   private:
 

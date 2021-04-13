@@ -1,9 +1,7 @@
 
 #include "LevelScreen.h"
-#include <generated/PlayerControlled.hpp>
 #include <game/dibidab.h>
 #include <imgui.h>
-#include "../../game/Game.h"
 
 LevelScreen::LevelScreen(Level *lvl) : lvl(lvl)
 {
@@ -13,7 +11,7 @@ LevelScreen::LevelScreen(Level *lvl) : lvl(lvl)
         if (!localPlayer || localPlayer->id != playerId)
             return;
         std::cout << "Local player entered room. Show RoomScreen\n";
-        showRoom(room);
+        showRoom(dynamic_cast<Room3D *>(room));
     };
 
     onRoomDeletion = lvl->beforeRoomDeletion += [this](Room *r)
@@ -51,13 +49,16 @@ void LevelScreen::renderDebugTools()
         auto str = std::to_string(lvl->getNrOfRooms()) + " room(s) active.";
         ImGui::MenuItem(str.c_str(), NULL, false, false);
 
+        if (ImGui::MenuItem("Create new Room"))
+            lvl->addRoom(new Room3D);
+
         ImGui::EndMenu();
     }
 
     ImGui::EndMainMenuBar();
 }
 
-void LevelScreen::showRoom(Room *r)
+void LevelScreen::showRoom(Room3D *r)
 {
     delete roomScreen;
     roomScreen = NULL;

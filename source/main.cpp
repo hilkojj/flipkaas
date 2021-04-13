@@ -5,6 +5,7 @@
 
 #include "game/Game.h"
 #include "rendering/GameScreen.h"
+#include "level/room/Room3D.h"
 
 bool assetsLoaded = false;
 
@@ -62,6 +63,12 @@ int main(int argc, char *argv[])
     Game::loadSettings();
 
     addAssetLoaders();
+
+    Level::customRoomLoader = [] (const json &j) {
+        auto *room = new Room3D;
+        room->fromJson(j);
+        return room;
+    };
 
     dibidab::init(argc, argv);
     assetsLoaded = true;
