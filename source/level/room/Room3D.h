@@ -9,9 +9,6 @@
 
 class Room3D : public Room
 {
-  protected:
-    void initializeLuaEnvironment() override;
-
   public:
 
     Camera *camera = NULL;
@@ -28,6 +25,11 @@ class Room3D : public Room
     static mat4 transformFromComponent(const Transform &);
 
     ~Room3D() override;
+
+  protected:
+    void initializeLuaEnvironment() override;
+
+    void updateOrCreateCamera(double deltaTime);
 
 };
 
