@@ -5,14 +5,23 @@
 
 #include <level/room/Room.h>
 #include <graphics/camera.h>
+#include <graphics/3d/model.h>
 #include "../../generated/Transform.hpp"
 
 class Room3D : public Room
 {
+    std::unordered_map<std::string, long> modelFileLoadTime;
+    VertBuffer *uploadingTo = NULL;
+
   public:
 
     Camera *camera = NULL;
     entt::entity cameraEntity = entt::null;
+
+    VertAttributes loadedMeshAttributes;
+    std::unordered_map<std::string, SharedModel> models;
+
+    Room3D();
 
     void update(double deltaTime) override;
 

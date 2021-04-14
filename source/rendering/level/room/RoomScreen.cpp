@@ -3,10 +3,16 @@
 #include <level/Level.h>
 #include <game/dibidab.h>
 #include "RoomScreen.h"
+#include "../../../generated/Model.hpp"
 
 RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
         :
-        room(room), showRoomEditor(showRoomEditor), inspector(*room, "Room")
+        room(room), showRoomEditor(showRoomEditor), inspector(*room, "Room"),
+
+        defaultShader(
+            "default shader",
+            "shaders/default.vert", "shaders/default.frag"
+        )
 {
     assert(room != NULL);
     inspector.createEntity_showSubFolder = "level_room";
@@ -16,17 +22,22 @@ void RoomScreen::render(double deltaTime)
 {
     gu::profiler::Zone z("Room");
 
-    glClearColor(0, 0, 0, 1);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
     if (!room->camera)
         return;
+
+    // todo sort models by depth
+
+    uint mask = ~0u;
+    renderRoomWithCam(*room->camera, mask);
 
     renderDebugStuff();
 }
@@ -85,4 +96,48 @@ void RoomScreen::renderDebugStuff()
 
 RoomScreen::~RoomScreen()
 {
+}
+
+void RoomScreen::renderRoomWithCam(Camera &cam, uint mask)
+{
+    defaultShader.use();
+
+    glUniform3fv(defaultShader.location("sunDirection"), 1, &vec3(1, 0, 0)[0]);
+    glUniform3fv(defaultShader.location("camPosition"), 1, &cam.position[0]);
+
+    room->entities.view<Transform, RenderModel>().each([&](auto e, Transform &t, RenderModel &rm) {
+
+        if (!(rm.visibilityMask & mask))
+            return;
+
+        auto &model = room->models[rm.modelName];
+        if (!model)
+            return;
+
+        auto transform = Room3D::transformFromComponent(t);
+
+        mat4 mvp = cam.combined * transform;
+        glUniformMatrix4fv(defaultShader.location("mvp"), 1, GL_FALSE, &mvp[0][0]);
+        glUniformMatrix4fv(defaultShader.location("transform"), 1, GL_FALSE, &transform[0][0]);
+
+        for (auto &modelPart : model->parts)
+        {
+            if (!modelPart.material || !modelPart.mesh)
+                continue;
+
+            if (!modelPart.mesh->vertBuffer)
+                throw gu_err("Model (" + model->name + ") mesh (" + modelPart.mesh->name + ") is not assigned to any VertBuffer!");
+
+            if (!modelPart.mesh->vertBuffer->isUploaded())
+                modelPart.mesh->vertBuffer->upload(true);
+
+            glUniform3fv(defaultShader.location("diffuse"), 1, &modelPart.material->diffuse[0]);
+            glUniform4fv(defaultShader.location("specular"), 1, &modelPart.material->specular[0]);
+
+            glUniform1i(defaultShader.location("useTexture"), 0);
+
+            std::cout << modelPart.mesh->name << std::endl;
+            modelPart.mesh->render(modelPart.meshPartIndex);
+        }
+    });
 }

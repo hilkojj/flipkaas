@@ -12,6 +12,7 @@ UIScreen::UIScreen(const asset<luau::Script> &s)
     script(s),
     inspector(*this, "UI")
 {
+    templateFolder = "scripts/entities/ui/";
 
     addSystem(new AudioSystem("audio"));
     addSystem(new LuaScriptsSystem("lua functions"));

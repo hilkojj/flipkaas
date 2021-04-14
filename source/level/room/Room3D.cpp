@@ -1,10 +1,22 @@
 
 #include <graphics/3d/perspective_camera.h>
 #include <utils/camera/flying_camera_controller.h>
+#include <utils/json_model_loader.h>
 #include <game/dibidab.h>
 #include "Room3D.h"
 #include "../../generated/Camera.hpp"
 #include "../../game/Game.h"
+
+Room3D::Room3D()
+{
+    templateFolder = "scripts/entities/level_room/";
+
+    loadedMeshAttributes
+        .add_(VertAttributes::POSITION)
+        .add_(VertAttributes::NORMAL)
+        .add_(VertAttributes::TANGENT)
+        .add_(VertAttributes::TEX_COORDS);
+}
 
 vec3 Room3D::getPosition(entt::entity e) const
 {
@@ -26,6 +38,23 @@ void Room3D::initializeLuaEnvironment()
     };
     luaEnvironment["getMainCamera"] = [&] {
         return cameraEntity;
+    };
+    luaEnvironment["loadModels"] = [&] (const char *path, bool force) {
+        if (!force && modelFileLoadTime.find(path) != modelFileLoadTime.end())
+            return false;
+
+        for (auto &model : JsonModelLoader::fromUbjsonFile(path, &loadedMeshAttributes))
+        {
+            if (!uploadingTo || uploadingTo->isUploaded())
+                uploadingTo = VertBuffer::with(loadedMeshAttributes);
+
+            models[model->name] = model;
+            for (auto &part : model->parts)
+                if (part.mesh)
+                    uploadingTo->add(part.mesh);
+        }
+        modelFileLoadTime[path] = glfwGetTime();
+        return true;
     };
 }
 

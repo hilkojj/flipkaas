@@ -1,0 +1,9 @@
+#config:
+#  hpp_incl:
+#    - graphics/shader_asset.h
+
+
+RenderModel:
+  modelName: std::string
+  visibilityMask: [uint, 1]
+

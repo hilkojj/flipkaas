@@ -6,6 +6,7 @@
 #include <gl_includes.h>
 #include <graphics/3d/debug_line_renderer.h>
 #include <graphics/camera.h>
+#include <graphics/shader_asset.h>
 #include "EntityInspector3D.h"
 #include "../../../level/room/Room3D.h"
 
@@ -16,6 +17,8 @@ class RoomScreen : public Screen
     DebugLineRenderer lineRenderer;
 
     EntityInspector3D inspector;
+
+    ShaderAsset defaultShader;
 
   public:
 
@@ -30,6 +33,10 @@ class RoomScreen : public Screen
     void renderDebugStuff();
 
     ~RoomScreen() override;
+
+  private:
+
+    void renderRoomWithCam(Camera &, uint mask);
 };
 
 

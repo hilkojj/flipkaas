@@ -7,46 +7,6 @@
 #include "rendering/GameScreen.h"
 #include "level/room/Room3D.h"
 
-bool assetsLoaded = false;
-
-void addAssetLoaders()
-{
-    // more loaders are added in dibidab::init()
-
-    static VertBuffer *vertBuffer = NULL;
-
-    AssetManager::addAssetLoader<std::vector<SharedModel>>(".ubj", [](auto path) {
-
-        VertAttributes vertAttributes;
-        vertAttributes.add(VertAttributes::POSITION);
-        vertAttributes.add(VertAttributes::NORMAL);
-
-        auto collection = new std::vector<SharedModel>(JsonModelLoader::fromUbjsonFile(path.c_str(), &vertAttributes));
-
-        if (assetsLoaded && vertBuffer && !vertBuffer->isUploaded())
-            vertBuffer->upload(true);   // upload before previous models get unloaded.
-
-        if (!vertBuffer || vertBuffer->isUploaded())
-            vertBuffer = VertBuffer::with(vertAttributes);
-
-        for (auto &model : *collection)
-            for (auto &part : model->parts)
-            {
-                if (part.mesh == NULL)
-                    throw gu_err(model->name + " has part without a mesh!");
-
-                if (part.mesh->vertBuffer)
-                    continue; // this mesh was handled before
-
-                for (int i = 0; i < part.mesh->nrOfVertices(); i++)
-                    part.mesh->set<vec3>(part.mesh->get<vec3>(i, 0) * 16.f, i, 0);
-                vertBuffer->add(part.mesh);
-            }
-
-        return collection;
-    });
-}
-
 void initLuaStuff()
 {
     auto &env = luau::getLuaState();
@@ -62,8 +22,6 @@ int main(int argc, char *argv[])
 {
     Game::loadSettings();
 
-    addAssetLoaders();
-
     Level::customRoomLoader = [] (const json &j) {
         auto *room = new Room3D;
         room->fromJson(j);
@@ -71,7 +29,6 @@ int main(int argc, char *argv[])
     };
 
     dibidab::init(argc, argv);
-    assetsLoaded = true;
 
     File::createDir("./saves"); // todo, see dibidab trello
     gu::setScreen(new GameScreen);
