@@ -134,9 +134,11 @@ void RoomScreen::renderRoomWithCam(Camera &cam, uint mask)
             glUniform3fv(defaultShader.location("diffuse"), 1, &modelPart.material->diffuse[0]);
             glUniform4fv(defaultShader.location("specular"), 1, &modelPart.material->specular[0]);
 
-            glUniform1i(defaultShader.location("useTexture"), 0);
+            glUniform1i(defaultShader.location("useTexture"), modelPart.material->diffuseTexture.isSet() ? 1 : 0);
+            if (modelPart.material->diffuseTexture.isSet())
+                modelPart.material->diffuseTexture->bind(1, defaultShader, "diffuseTexture");
 
-            std::cout << modelPart.mesh->name << std::endl;
+
             modelPart.mesh->render(modelPart.meshPartIndex);
         }
     });

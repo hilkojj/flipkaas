@@ -50,7 +50,7 @@ void Room3D::initializeLuaEnvironment()
 
             models[model->name] = model;
             for (auto &part : model->parts)
-                if (part.mesh)
+                if (part.mesh && !part.mesh->vertBuffer)
                     uploadingTo->add(part.mesh);
         }
         modelFileLoadTime[path] = glfwGetTime();

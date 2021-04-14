@@ -4,6 +4,8 @@ in vec3 vPosition;
 in vec3 vNormal;
 in vec2 vTextureCoord;
 
+out vec3 colorOut;
+
 uniform vec3 camPosition;
 uniform vec3 sunDirection;
 uniform vec3 diffuse;
@@ -22,7 +24,7 @@ void main()
     if (useTexture == 1)
     diffuseColor = texture(diffuseTexture, vTextureCoord).rgb;
 
-    gl_FragColor = vec4(diffuseColor * diffuseLight, 1.0);
+    colorOut = diffuseColor * diffuseLight;
 
 
     // specularity:
@@ -32,5 +34,5 @@ void main()
 
     float specularity = pow(max(dot(viewDir, reflectDir), 0.), specular.a);
 
-    gl_FragColor.rgb += specular.rgb * specularity;
+    colorOut += specular.rgb * specularity;
 }
