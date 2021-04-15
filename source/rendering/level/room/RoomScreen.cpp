@@ -134,10 +134,20 @@ void RoomScreen::renderRoomWithCam(Camera &cam, uint mask)
             glUniform3fv(defaultShader.location("diffuse"), 1, &modelPart.material->diffuse[0]);
             glUniform4fv(defaultShader.location("specular"), 1, &modelPart.material->specular[0]);
 
-            glUniform1i(defaultShader.location("useTexture"), modelPart.material->diffuseTexture.isSet() ? 1 : 0);
-            if (modelPart.material->diffuseTexture.isSet())
+            bool useDiffuseTexture = modelPart.material->diffuseTexture.isSet();
+            glUniform1i(defaultShader.location("useDiffuseTexture"), useDiffuseTexture);
+            if (useDiffuseTexture)
                 modelPart.material->diffuseTexture->bind(1, defaultShader, "diffuseTexture");
 
+            bool useSpecularMap = modelPart.material->specularMap.isSet();
+            glUniform1i(defaultShader.location("useSpecularMap"), useSpecularMap);
+            if (useSpecularMap)
+                modelPart.material->specularMap->bind(2, defaultShader, "specularMap");
+
+            bool useNormalMap = modelPart.material->normalMap.isSet();
+            glUniform1i(defaultShader.location("useNormalMap"), useNormalMap);
+            if (useNormalMap)
+                modelPart.material->normalMap->bind(3, defaultShader, "useNormalMap");
 
             modelPart.mesh->render(modelPart.meshPartIndex);
         }

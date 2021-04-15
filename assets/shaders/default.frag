@@ -10,8 +10,15 @@ uniform vec3 camPosition;
 uniform vec3 sunDirection;
 uniform vec3 diffuse;
 uniform vec4 specular;  // 4th component is Exponent
-uniform int useTexture;
+
+uniform int useDiffuseTexture;
 uniform sampler2D diffuseTexture;
+
+uniform int useSpecularMap;
+uniform sampler2D specularMap;
+
+uniform int useNormalMap;
+uniform sampler2D normalMap;
 
 // PHONG
 void main()
@@ -21,8 +28,8 @@ void main()
     diffuseLight = max(.3, diffuseLight);   // add ambient light
 
     vec3 diffuseColor = diffuse;
-    if (useTexture == 1)
-    diffuseColor = texture(diffuseTexture, vTextureCoord).rgb;
+    if (useDiffuseTexture == 1)
+        diffuseColor = texture(diffuseTexture, vTextureCoord).rgb;
 
     colorOut = diffuseColor * diffuseLight;
 
@@ -34,5 +41,9 @@ void main()
 
     float specularity = pow(max(dot(viewDir, reflectDir), 0.), specular.a);
 
-    colorOut += specular.rgb * specularity;
+    vec3 specularColor = specular.rgb;
+    if (useSpecularMap == 1)
+        specularColor = texture(specularMap, vTextureCoord).rgb;
+
+    colorOut += specularColor * specularity;
 }
