@@ -147,7 +147,7 @@ void RoomScreen::renderRoomWithCam(Camera &cam, uint mask)
             bool useNormalMap = modelPart.material->normalMap.isSet();
             glUniform1i(defaultShader.location("useNormalMap"), useNormalMap);
             if (useNormalMap)
-                modelPart.material->normalMap->bind(3, defaultShader, "useNormalMap");
+                modelPart.material->normalMap->bind(3, defaultShader, "normalMap");
 
             modelPart.mesh->render(modelPart.meshPartIndex);
         }

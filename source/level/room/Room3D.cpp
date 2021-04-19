@@ -2,6 +2,7 @@
 #include <graphics/3d/perspective_camera.h>
 #include <utils/camera/flying_camera_controller.h>
 #include <utils/json_model_loader.h>
+#include <graphics/3d/tangent_calculator.h>
 #include <game/dibidab.h>
 #include "Room3D.h"
 #include "../../generated/Camera.hpp"
@@ -43,6 +44,8 @@ void Room3D::initializeLuaEnvironment()
         if (!force && modelFileLoadTime.find(path) != modelFileLoadTime.end())
             return false;
 
+        std::unordered_map<Mesh *, bool> calculatedTangents;
+
         for (auto &model : JsonModelLoader::fromUbjsonFile(path, &loadedMeshAttributes))
         {
             if (!uploadingTo || uploadingTo->isUploaded())
@@ -50,8 +53,18 @@ void Room3D::initializeLuaEnvironment()
 
             models[model->name] = model;
             for (auto &part : model->parts)
-                if (part.mesh && !part.mesh->vertBuffer)
+            {
+                if (!part.mesh)
+                    continue;
+                if (!calculatedTangents[part.mesh.get()])
+                {
+                    for (int i = 0; i < part.mesh->parts.size(); i++)
+                        TangentCalculator::addTangentsToMesh(part.mesh, i);
+                    calculatedTangents[part.mesh.get()] = true;
+                }
+                if (!part.mesh->vertBuffer)
                     uploadingTo->add(part.mesh);
+            }
         }
         modelFileLoadTime[path] = glfwGetTime();
         return true;
