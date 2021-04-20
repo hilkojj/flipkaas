@@ -219,7 +219,7 @@ void RoomScreen::renderRoom(const RenderContext &con)
 {
     gu::profiler::Zone z("render models");
 
-    int texSlot = 0;
+    int texSlot = 3;
 
     if (con.lights && con.uploadLightData)
     {
@@ -231,12 +231,20 @@ void RoomScreen::renderRoom(const RenderContext &con)
             prevNrOfPointLights = nrOfPointLights;
         }
 
-        auto dlView = room->entities.view<Transform, DirectionalLight>();
+        auto dlView = room->entities.view<Transform, DirectionalLight>(entt::exclude<ShadowRenderer>);
         int nrOfDirLights = dlView.size();
         if (nrOfDirLights != prevNrOfDirLights)
         {
             ShaderDefinitions::defineInt("NR_OF_DIR_LIGHTS", nrOfDirLights);
             prevNrOfDirLights = nrOfDirLights;
+        }
+
+        auto dShadowLView = room->entities.view<Transform, DirectionalLight, ShadowRenderer>();
+        int nrOfDirShadowLights = dShadowLView.size();
+        if (nrOfDirShadowLights != prevNrOfDirShadowLights)
+        {
+            ShaderDefinitions::defineInt("NR_OF_DIR_SHADOW_LIGHTS", nrOfDirShadowLights);
+            prevNrOfDirShadowLights = nrOfDirShadowLights;
         }
 
         con.shader.use();
@@ -265,15 +273,24 @@ void RoomScreen::renderRoom(const RenderContext &con)
             glUniform3fv(con.shader.location((arrEl + ".ambient").c_str()), 1, &dl.ambient[0]);
             glUniform3fv(con.shader.location((arrEl + ".diffuse").c_str()), 1, &dl.diffuse[0]);
             glUniform3fv(con.shader.location((arrEl + ".specular").c_str()), 1, &dl.specular[0]);
+        });
 
-            auto *sr = con.shadows ? room->entities.try_get<ShadowRenderer>(e) : NULL;
-            glUniform1i(con.shader.location((arrEl + ".hasShadow").c_str()), sr ? 1 : 0);
-            if (sr)
-            {
-                assert(sr->fbo != NULL && sr->fbo->depthTexture != NULL);
-                sr->fbo->depthTexture->bind(++texSlot, con.shader, (arrEl + ".shadowMap").c_str());
-                glUniformMatrix4fv(con.shader.location((arrEl + ".shadowSpace").c_str()), 1, GL_FALSE, &sr->shadowSpace[0][0]);
-            }
+        int dirShadowLightI = 0;
+        dShadowLView.each([&](auto e, Transform &t, DirectionalLight &dl, ShadowRenderer &sr) {
+
+            std::string arrEl = "dirShadowLights[" + std::to_string(dirShadowLightI++) + "]";
+
+            auto transform = Room3D::transformFromComponent(t);
+            vec3 direction = transform * vec4(-mu::Y, 0);
+
+            glUniform3fv(con.shader.location((arrEl + ".light.direction").c_str()), 1, &direction[0]);
+            glUniform3fv(con.shader.location((arrEl + ".light.ambient").c_str()), 1, &dl.ambient[0]);
+            glUniform3fv(con.shader.location((arrEl + ".light.diffuse").c_str()), 1, &dl.diffuse[0]);
+            glUniform3fv(con.shader.location((arrEl + ".light.specular").c_str()), 1, &dl.specular[0]);
+
+            assert(sr.fbo != NULL && sr.fbo->depthTexture != NULL);
+            sr.fbo->depthTexture->bind(++texSlot, con.shader, (arrEl + ".shadowMap").c_str());
+            glUniformMatrix4fv(con.shader.location((arrEl + ".shadowSpace").c_str()), 1, GL_FALSE, &sr.shadowSpace[0][0]);
         });
     }
     else con.shader.use();
@@ -317,17 +334,17 @@ void RoomScreen::renderRoom(const RenderContext &con)
                 bool useDiffuseTexture = modelPart.material->diffuseTexture.isSet();
                 glUniform1i(con.shader.location("useDiffuseTexture"), useDiffuseTexture);
                 if (useDiffuseTexture)
-                    modelPart.material->diffuseTexture->bind(texSlot + 1, con.shader, "diffuseTexture");
+                    modelPart.material->diffuseTexture->bind(0, con.shader, "diffuseTexture");
 
                 bool useSpecularMap = modelPart.material->specularMap.isSet();
                 glUniform1i(con.shader.location("useSpecularMap"), useSpecularMap);
                 if (useSpecularMap)
-                    modelPart.material->specularMap->bind(texSlot + 2, con.shader, "specularMap");
+                    modelPart.material->specularMap->bind(1, con.shader, "specularMap");
 
                 bool useNormalMap = modelPart.material->normalMap.isSet();
                 glUniform1i(con.shader.location("useNormalMap"), useNormalMap);
                 if (useNormalMap)
-                    modelPart.material->normalMap->bind(texSlot + 3, con.shader, "normalMap");
+                    modelPart.material->normalMap->bind(2, con.shader, "normalMap");
             }
 
             modelPart.mesh->render(modelPart.meshPartIndex);

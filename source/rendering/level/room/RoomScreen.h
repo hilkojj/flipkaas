@@ -32,7 +32,7 @@ class RoomScreen : public Screen
 
     ShaderAsset defaultShader, depthShader;
 
-    int prevNrOfPointLights = -1, prevNrOfDirLights = -1;
+    int prevNrOfPointLights = -1, prevNrOfDirLights = -1, prevNrOfDirShadowLights = -1;
 
   public:
 

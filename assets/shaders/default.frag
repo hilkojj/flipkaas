@@ -21,14 +21,16 @@ struct DirectionalLight
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
-
-    #if SHADOWS
-    bool hasShadow;
-    mediump sampler2DShadow shadowMap;
-    mat4 shadowSpace;
-    #endif
 };
 
+#if SHADOWS
+struct DirectionalShadowLight
+{
+    mediump sampler2DShadow shadowMap;
+    mat4 shadowSpace;
+    DirectionalLight light;
+};
+#endif
 
 in vec3 v_position;
 in vec2 v_textureCoord;
@@ -54,12 +56,20 @@ uniform vec3 camPosition;
 #define NR_OF_DIR_LIGHTS 0
 #endif
 
+#ifndef NR_OF_DIR_SHADOW_LIGHTS
+#define NR_OF_DIR_SHADOW_LIGHTS 0
+#endif
+
 #ifndef NR_OF_POINT_LIGHTS
 #define NR_OF_POINT_LIGHTS 0
 #endif
 
 #if NR_OF_DIR_LIGHTS
 uniform DirectionalLight dirLights[NR_OF_DIR_LIGHTS];    // TODO: uniform buffer object?
+#endif
+
+#if NR_OF_DIR_SHADOW_LIGHTS
+uniform DirectionalShadowLight dirShadowLights[NR_OF_DIR_SHADOW_LIGHTS];    // TODO: uniform buffer object?
 #endif
 
 #if NR_OF_POINT_LIGHTS
@@ -92,23 +102,8 @@ void calcPointLight(PointLight light, vec3 normal, vec3 viewDir, inout vec3 tota
     totalSpecular  += light.specular * spec * attenuation;
 }
 
-void calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, inout vec3 totalDiffuse, inout vec3 totalSpecular, inout vec3 totalAmbient)
+void calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, inout vec3 totalDiffuse, inout vec3 totalSpecular, inout vec3 totalAmbient, float shadow)
 {
-    float shadow = 0.;
-    #if SHADOWS
-    if (light.hasShadow)
-    {
-        vec4 shadowMapCoords = light.shadowSpace * vec4(v_position, 1);
-        shadowMapCoords = shadowMapCoords * .5 + .5;
-        if (shadowMapCoords.x >= 0. && shadowMapCoords.x <= 1. && shadowMapCoords.y >= 0. && shadowMapCoords.y <= 1.)
-        {
-            shadow = 1. - texture(light.shadowMap, shadowMapCoords.xyz);
-            // OpenGL will use the Z component to compare this fragment's depth to the depth on the shadow map
-            // OpenGL will return a value between 0 and 1, based on how much shadow this fragment should have.
-        }
-    }
-    #endif
-
     // diffuse shading
     float diff = max(dot(normal, -light.direction), 0.0);
 
@@ -120,6 +115,20 @@ void calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, inout vec3 
     totalAmbient += light.ambient;
     totalDiffuse += light.diffuse * diff * (1. - shadow);
     totalSpecular += light.specular * spec * (1. - shadow);
+}
+
+void calcDirShadowLight(DirectionalShadowLight light, vec3 normal, vec3 viewDir, inout vec3 totalDiffuse, inout vec3 totalSpecular, inout vec3 totalAmbient)
+{
+    float shadow = 0.;
+    vec4 shadowMapCoords = light.shadowSpace * vec4(v_position, 1);
+    shadowMapCoords = shadowMapCoords * .5 + .5;
+    if (shadowMapCoords.x >= 0. && shadowMapCoords.x <= 1. && shadowMapCoords.y >= 0. && shadowMapCoords.y <= 1.)
+    {
+        shadow = 1. - texture(light.shadowMap, shadowMapCoords.xyz);
+        // OpenGL will use the Z component to compare this fragment's depth to the depth on the shadow map
+        // OpenGL will return a value between 0 and 1, based on how much shadow this fragment should have.
+    }
+    calcDirLight(light.light, normal, viewDir, totalDiffuse, totalSpecular, totalAmbient, shadow);
 }
 
 // PHONG
@@ -162,7 +171,15 @@ void main()
     {   // Directional lights
 
         for (int i = 0; i < NR_OF_DIR_LIGHTS; i++)
-            calcDirLight(dirLights[i], normal, viewDir, totalDiffuseLight, totalSpecularLight, totalAmbientLight);
+            calcDirLight(dirLights[i], normal, viewDir, totalDiffuseLight, totalSpecularLight, totalAmbientLight, 0.);
+    }
+    #endif
+
+    #if NR_OF_DIR_SHADOW_LIGHTS
+    {   // Directional lights WITH SHADOW
+
+        for (int i = 0; i < NR_OF_DIR_SHADOW_LIGHTS; i++)
+            calcDirShadowLight(dirShadowLights[i], normal, viewDir, totalDiffuseLight, totalSpecularLight, totalAmbientLight);
     }
     #endif
 
