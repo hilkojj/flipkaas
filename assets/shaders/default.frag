@@ -22,9 +22,11 @@ struct DirectionalLight
     vec3 diffuse;
     vec3 specular;
 
+    #if SHADOWS
     bool hasShadow;
     mediump sampler2DShadow shadowMap;
     mat4 shadowSpace;
+    #endif
 };
 
 
@@ -93,6 +95,7 @@ void calcPointLight(PointLight light, vec3 normal, vec3 viewDir, inout vec3 tota
 void calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, inout vec3 totalDiffuse, inout vec3 totalSpecular, inout vec3 totalAmbient)
 {
     float shadow = 0.;
+    #if SHADOWS
     if (light.hasShadow)
     {
         vec4 shadowMapCoords = light.shadowSpace * vec4(v_position, 1);
@@ -104,6 +107,7 @@ void calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, inout vec3 
             // OpenGL will return a value between 0 and 1, based on how much shadow this fragment should have.
         }
     }
+    #endif
 
     // diffuse shading
     float diff = max(dot(normal, -light.direction), 0.0);

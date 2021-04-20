@@ -8,6 +8,7 @@
 #include "../../../generated/Camera.hpp"
 #include "../../../generated/Model.hpp"
 #include "../../../generated/Light.hpp"
+#include "../../../game/Game.h"
 
 RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
         :
@@ -24,6 +25,20 @@ RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
 {
     assert(room != NULL);
     inspector.createEntity_showSubFolder = "level_room";
+}
+
+OrthographicCamera camForDirLight(Transform &t, ShadowRenderer &sr)
+{
+    OrthographicCamera orthoCam(sr.nearClipPlane, sr.farClipPlane, sr.frustrumSize.x, sr.frustrumSize.y);
+
+    auto transform = Room3D::transformFromComponent(t);
+    orthoCam.position = t.position;
+    orthoCam.direction = normalize(transform * vec4(-mu::Y, 0));
+    orthoCam.up = normalize(transform * vec4(mu::Z, 0));
+    orthoCam.right = normalize(cross(orthoCam.up, orthoCam.direction));
+    orthoCam.update();
+
+    return orthoCam;
 }
 
 void RoomScreen::render(double deltaTime)
@@ -44,24 +59,18 @@ void RoomScreen::render(double deltaTime)
 
     // todo sort models by depth
 
+    if (Game::settings.graphics.shadows)
     {
         gu::profiler::Zone z1("shadow maps");
 
         room->entities.view<Transform, DirectionalLight, ShadowRenderer>().each([&](Transform &t, DirectionalLight &dl, ShadowRenderer &sr) {
 
-            OrthographicCamera orthoCam(sr.nearClipPlane, sr.farClipPlane, sr.frustrumSize.x, sr.frustrumSize.y);
-
-            auto transform = Room3D::transformFromComponent(t);
-            orthoCam.position = t.position;
-            orthoCam.direction = normalize(transform * vec4(-mu::Y, 0));
-            orthoCam.up = normalize(transform * vec4(mu::Z, 0));
-            orthoCam.right = normalize(cross(orthoCam.up, orthoCam.direction));
-            orthoCam.update();
+            auto orthoCam = camForDirLight(t, sr);
             sr.shadowSpace = orthoCam.combined;
 
             if (!sr.fbo || sr.fbo->width != sr.resolution.x || sr.fbo->height != sr.resolution.y)
             {
-                sr.fbo = std::make_shared<FrameBuffer>(sr.resolution.x, sr.resolution.y);
+                sr.fbo = std::make_shared<FrameBuffer>(sr.resolution.x, sr.resolution.y, 4);
                 sr.fbo->addDepthTexture(GL_LINEAR, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
             }
@@ -82,6 +91,7 @@ void RoomScreen::render(double deltaTime)
 
     RenderContext finalImg { *room->camera, defaultShader };
     finalImg.mask = ~0u;
+    finalImg.shadows = Game::settings.graphics.shadows;
     if (room->entities.valid(room->cameraEntity))
         if (auto *cp = room->entities.try_get<CameraPerspective>(room->cameraEntity))
             finalImg.mask = cp->visibilityMask;
@@ -106,6 +116,8 @@ void RoomScreen::renderDebugStuff()
     auto &cam = *room->camera;
     lineRenderer.projection = cam.combined;
 
+    static bool showShadowBoxes = true;
+
     {
         // x-axis:
         lineRenderer.line(vec3(cam.position.x - 1000, 0, 0), vec3(cam.position.x + 1000, 0, 0), mu::X);
@@ -116,7 +128,7 @@ void RoomScreen::renderDebugStuff()
     }
     {
         // directional lights:
-        room->entities.view<Transform, DirectionalLight>().each([&](Transform &t, DirectionalLight &dl) {
+        room->entities.view<Transform, DirectionalLight>().each([&](auto e, Transform &t, DirectionalLight &dl) {
 
             auto transform = Room3D::transformFromComponent(t);
             vec3 direction = transform * vec4(-mu::Y, 0);
@@ -124,6 +136,39 @@ void RoomScreen::renderDebugStuff()
             lineRenderer.axes(t.position, .1, vec3(1, 1, 0));
             for (int i = 0; i < 100; i++)
                 lineRenderer.line(t.position + direction * float(i * .2), t.position + direction * float(i * .2 + .1), vec3(1, 1, 0));
+
+            if (showShadowBoxes) if (ShadowRenderer *sr = room->entities.try_get<ShadowRenderer>(e))
+            {
+                auto orthoCam = camForDirLight(t, *sr);
+
+                // topleft
+                auto A = t.position + orthoCam.up * sr->frustrumSize.y * .5f - orthoCam.right * sr->frustrumSize.x * .5f;
+                // topright
+                auto B = t.position + orthoCam.up * sr->frustrumSize.y * .5f + orthoCam.right * sr->frustrumSize.x * .5f;
+                // bottomright
+                auto C = t.position - orthoCam.up * sr->frustrumSize.y * .5f + orthoCam.right * sr->frustrumSize.x * .5f;
+                // bottomleft
+                auto D = t.position - orthoCam.up * sr->frustrumSize.y * .5f - orthoCam.right * sr->frustrumSize.x * .5f;
+
+                auto depthDir = orthoCam.direction * orthoCam.far_;
+
+                auto color = vec3(1, 1, 0);
+
+                lineRenderer.line(A, B, color);
+                lineRenderer.line(B, C, color);
+                lineRenderer.line(C, D, color);
+                lineRenderer.line(D, A, color);
+
+                lineRenderer.line(A, A + depthDir, color);
+                lineRenderer.line(B, B + depthDir, color);
+                lineRenderer.line(C, C + depthDir, color);
+                lineRenderer.line(D, D + depthDir, color);
+
+                lineRenderer.line(A + depthDir, B + depthDir, color);
+                lineRenderer.line(B + depthDir, C + depthDir, color);
+                lineRenderer.line(C + depthDir, D + depthDir, color);
+                lineRenderer.line(D + depthDir, A + depthDir, color);
+            }
         });
 
         // point lights:
@@ -138,6 +183,9 @@ void RoomScreen::renderDebugStuff()
 
     if (ImGui::BeginMenu("Room"))
     {
+        ImGui::Separator();
+        ImGui::Checkbox("Show shadow boxes", &showShadowBoxes);
+
         if (ImGui::MenuItem("View as JSON"))
         {
             auto &tab = CodeEditor::tabs.emplace_back();

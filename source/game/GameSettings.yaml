@@ -8,6 +8,7 @@ GraphicsSettings:
 
   imGuiFont: [string, "assets/fonts/ruda/Ruda-Bold.ttf"]
   gammaCorrection: [float, 2.2]
+  shadows: [bool, true]
 
 KeyInputSettings:
   _flags:
