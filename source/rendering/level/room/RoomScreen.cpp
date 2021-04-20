@@ -4,6 +4,7 @@
 #include <game/dibidab.h>
 #include "RoomScreen.h"
 #include "../../../generated/Model.hpp"
+#include "../../../generated/Light.hpp"
 
 RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
         :
@@ -100,10 +101,32 @@ RoomScreen::~RoomScreen()
 
 void RoomScreen::renderRoomWithCam(Camera &cam, uint mask)
 {
+
+    auto plView = room->entities.view<Transform, PointLight>();
+    int nrOfPointLights = plView.size();
+
+    if (nrOfPointLights != prevNrOfLights)
+    {
+        ShaderDefinitions::defineInt("NR_OF_POINT_LIGHTS", nrOfPointLights);
+        prevNrOfLights = nrOfPointLights;
+    }
+
     defaultShader.use();
 
     glUniform3fv(defaultShader.location("sunDirection"), 1, &vec3(1, 0, 0)[0]);
     glUniform3fv(defaultShader.location("camPosition"), 1, &cam.position[0]);
+
+    int pointLightI = 0;
+    plView.each([&](Transform &t, PointLight &pl) {
+
+        std::string arrEl = "pointLights[" + std::to_string(pointLightI++) + "]";
+
+        glUniform3fv(defaultShader.location((arrEl + ".position").c_str()), 1, &t.position[0]);
+        glUniform3fv(defaultShader.location((arrEl + ".attenuation").c_str()), 1, &vec3(pl.constant, pl.linear, pl.quadratic)[0]); // todo, point to pl.constant?
+        glUniform3fv(defaultShader.location((arrEl + ".ambient").c_str()), 1, &pl.ambient[0]);
+        glUniform3fv(defaultShader.location((arrEl + ".diffuse").c_str()), 1, &pl.diffuse[0]);
+        glUniform3fv(defaultShader.location((arrEl + ".specular").c_str()), 1, &pl.specular[0]);
+    });
 
     room->entities.view<Transform, RenderModel>().each([&](auto e, Transform &t, RenderModel &rm) {
 

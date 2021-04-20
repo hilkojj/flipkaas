@@ -20,6 +20,8 @@ class RoomScreen : public Screen
 
     ShaderAsset defaultShader;
 
+    int prevNrOfLights = -1;
+
   public:
 
     Room3D *room;

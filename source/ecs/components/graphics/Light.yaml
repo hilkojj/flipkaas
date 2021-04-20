@@ -1,0 +1,18 @@
+
+PointLight:
+
+  # values of const, lin, and quad: http://wiki.ogre3d.org/tiki-index.php?page=-Point+Light+Attenuation
+  #                                 and https://learnopengl.com/Lighting/Light-casters
+  constant: [float, 1.0]
+  linear: [float, 0.07]
+  quadratic: [float, 0.017]
+
+  ambient: [vec3, vec3(0)]
+  diffuse: [vec3, vec3(1)]
+  specular: [vec3, vec3(1)]
+
+SpotLight:
+  f
+
+DirectionalLight:
+  f

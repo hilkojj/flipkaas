@@ -30,6 +30,8 @@ int main(int argc, char *argv[])
 
     dibidab::init(argc, argv);
 
+    ShaderDefinitions::defineInt("NR_OF_POINT_LIGHTS", 0);
+
     File::createDir("./saves"); // todo, see dibidab trello
     gu::setScreen(new GameScreen);
 
