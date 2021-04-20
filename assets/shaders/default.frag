@@ -99,8 +99,9 @@ void calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, inout vec3 
         shadowMapCoords = shadowMapCoords * .5 + .5;
         if (shadowMapCoords.x >= 0. && shadowMapCoords.x <= 1. && shadowMapCoords.y >= 0. && shadowMapCoords.y <= 1.)
         {
-            float closestDepth = texture(light.shadowMap, shadowMapCoords.xyz).r;
-            shadow = shadowMapCoords.z > closestDepth ? 1. : 0.;
+            shadow = 1. - texture(light.shadowMap, shadowMapCoords.xyz);
+            // OpenGL will use the Z component to compare this fragment's depth to the depth on the shadow map
+            // OpenGL will return a value between 0 and 1, based on how much shadow this fragment should have.
         }
     }
 
