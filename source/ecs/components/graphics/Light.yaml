@@ -1,3 +1,7 @@
+config:
+  fwd_decl:
+    - FrameBuffer
+
 
 PointLight:
 
@@ -18,3 +22,20 @@ DirectionalLight:
   ambient: [vec3, vec3(0)]
   diffuse: [vec3, vec3(1)]
   specular: [vec3, vec3(1)]
+
+ShadowRenderer:
+  visibilityMask: [uint, 1]
+  resolution: [ivec2, ivec2(1024)]
+  frustrumSize: [vec2, vec2(20)]
+  nearClipPlane: [ float, .1 ]
+  farClipPlane: [ float, 1000 ]
+
+  _cpp_only:
+    fbo: std::shared_ptr<FrameBuffer>
+    shadowSpace: mat4
+
+ShadowCaster:
+  f
+
+ShadowReceiver:
+  f

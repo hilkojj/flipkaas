@@ -21,6 +21,10 @@ struct DirectionalLight
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+
+    bool hasShadow;
+    mediump sampler2DShadow shadowMap;
+    mat4 shadowSpace;
 };
 
 
@@ -88,6 +92,18 @@ void calcPointLight(PointLight light, vec3 normal, vec3 viewDir, inout vec3 tota
 
 void calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, inout vec3 totalDiffuse, inout vec3 totalSpecular, inout vec3 totalAmbient)
 {
+    float shadow = 0.;
+    if (light.hasShadow)
+    {
+        vec4 shadowMapCoords = light.shadowSpace * vec4(v_position, 1);
+        shadowMapCoords = shadowMapCoords * .5 + .5;
+        if (shadowMapCoords.x >= 0. && shadowMapCoords.x <= 1. && shadowMapCoords.y >= 0. && shadowMapCoords.y <= 1.)
+        {
+            float closestDepth = texture(light.shadowMap, shadowMapCoords.xyz).r;
+            shadow = shadowMapCoords.z > closestDepth ? 1. : 0.;
+        }
+    }
+
     // diffuse shading
     float diff = max(dot(normal, -light.direction), 0.0);
 
@@ -97,8 +113,8 @@ void calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, inout vec3 
 
     // combine results
     totalAmbient += light.ambient;
-    totalDiffuse += light.diffuse * diff;
-    totalSpecular += light.specular * spec;
+    totalDiffuse += light.diffuse * diff * (1. - shadow);
+    totalSpecular += light.specular * spec * (1. - shadow);
 }
 
 // PHONG

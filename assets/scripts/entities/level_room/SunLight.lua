@@ -1,5 +1,5 @@
 
-persistenceMode(TEMPLATE | ARGS, {"Transform", "DirectionalLight"})
+persistenceMode(TEMPLATE | ARGS, {"Transform", "DirectionalLight", "ShadowRenderer"})
 
 function create(sun)
 

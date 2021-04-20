@@ -12,13 +12,25 @@
 
 class RoomScreen : public Screen
 {
+    struct RenderContext
+    {
+        Camera &cam;
+        ShaderProgram &shader;
+        uint mask;
+        bool
+            lights = true,
+            uploadLightData = true,
+            shadows = true,
+            materials = true;
+    };
+
     bool showRoomEditor = false;
 
     DebugLineRenderer lineRenderer;
 
     EntityInspector3D inspector;
 
-    ShaderAsset defaultShader;
+    ShaderAsset defaultShader, depthShader;
 
     int prevNrOfPointLights = -1, prevNrOfDirLights = -1;
 
@@ -38,7 +50,7 @@ class RoomScreen : public Screen
 
   private:
 
-    void renderRoomWithCam(Camera &, uint mask);
+    void renderRoom(const RenderContext &);
 };
 
 

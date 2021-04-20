@@ -2,7 +2,10 @@
 #include <utils/code_editor/CodeEditor.h>
 #include <level/Level.h>
 #include <game/dibidab.h>
+#include <graphics/orthographic_camera.h>
+#include <graphics/frame_buffer.h>
 #include "RoomScreen.h"
+#include "../../../generated/Camera.hpp"
 #include "../../../generated/Model.hpp"
 #include "../../../generated/Light.hpp"
 
@@ -13,6 +16,10 @@ RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
         defaultShader(
             "default shader",
             "shaders/default.vert", "shaders/default.frag"
+        ),
+        depthShader(
+            "depth shader",
+            "shaders/depth.vert", "shaders/depth.frag"
         )
 {
     assert(room != NULL);
@@ -37,8 +44,49 @@ void RoomScreen::render(double deltaTime)
 
     // todo sort models by depth
 
-    uint mask = ~0u;
-    renderRoomWithCam(*room->camera, mask);
+    {
+        gu::profiler::Zone z1("shadow maps");
+
+        room->entities.view<Transform, DirectionalLight, ShadowRenderer>().each([&](Transform &t, DirectionalLight &dl, ShadowRenderer &sr) {
+
+            OrthographicCamera orthoCam(sr.nearClipPlane, sr.farClipPlane, sr.frustrumSize.x, sr.frustrumSize.y);
+
+            auto transform = Room3D::transformFromComponent(t);
+            orthoCam.position = t.position;
+            orthoCam.direction = normalize(transform * vec4(-mu::Y, 0));
+            orthoCam.up = normalize(transform * vec4(mu::Z, 0));
+            orthoCam.right = normalize(cross(orthoCam.up, orthoCam.direction));
+            orthoCam.update();
+            sr.shadowSpace = orthoCam.combined;
+
+            if (!sr.fbo || sr.fbo->width != sr.resolution.x || sr.fbo->height != sr.resolution.y)
+            {
+                sr.fbo = std::make_shared<FrameBuffer>(sr.resolution.x, sr.resolution.y);
+                sr.fbo->addDepthTexture(GL_LINEAR, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+            }
+
+            sr.fbo->bind();
+            glClear(GL_DEPTH_BUFFER_BIT);
+
+            RenderContext shadowMapCon { orthoCam, depthShader };
+            shadowMapCon.mask = sr.visibilityMask;
+            shadowMapCon.lights = false;
+            shadowMapCon.materials = false;
+            glCullFace(GL_FRONT);
+            renderRoom(shadowMapCon);
+            glCullFace(GL_BACK);
+            sr.fbo->unbind();
+        });
+    }
+
+    RenderContext finalImg { *room->camera, defaultShader };
+    finalImg.mask = ~0u;
+    if (room->entities.valid(room->cameraEntity))
+        if (auto *cp = room->entities.try_get<CameraPerspective>(room->cameraEntity))
+            finalImg.mask = cp->visibilityMask;
+
+    renderRoom(finalImg);
 
     renderDebugStuff();
 }
@@ -114,60 +162,79 @@ void RoomScreen::renderDebugStuff()
 
 RoomScreen::~RoomScreen()
 {
+    room->entities.view<ShadowRenderer>().each([&](ShadowRenderer &sr) {
+        sr.fbo = NULL;
+    });
 }
 
-void RoomScreen::renderRoomWithCam(Camera &cam, uint mask)
+void RoomScreen::renderRoom(const RenderContext &con)
 {
+    gu::profiler::Zone z("render models");
 
-    auto plView = room->entities.view<Transform, PointLight>();
-    int nrOfPointLights = plView.size();
-    if (nrOfPointLights != prevNrOfPointLights)
+    int texSlot = 0;
+
+    if (con.lights && con.uploadLightData)
     {
-        ShaderDefinitions::defineInt("NR_OF_POINT_LIGHTS", nrOfPointLights);
-        prevNrOfPointLights = nrOfPointLights;
+        auto plView = room->entities.view<Transform, PointLight>();
+        int nrOfPointLights = plView.size();
+        if (nrOfPointLights != prevNrOfPointLights)
+        {
+            ShaderDefinitions::defineInt("NR_OF_POINT_LIGHTS", nrOfPointLights);
+            prevNrOfPointLights = nrOfPointLights;
+        }
+
+        auto dlView = room->entities.view<Transform, DirectionalLight>();
+        int nrOfDirLights = dlView.size();
+        if (nrOfDirLights != prevNrOfDirLights)
+        {
+            ShaderDefinitions::defineInt("NR_OF_DIR_LIGHTS", nrOfDirLights);
+            prevNrOfDirLights = nrOfDirLights;
+        }
+
+        con.shader.use();
+
+        int pointLightI = 0;
+        plView.each([&](Transform &t, PointLight &pl) {
+
+            std::string arrEl = "pointLights[" + std::to_string(pointLightI++) + "]";
+
+            glUniform3fv(con.shader.location((arrEl + ".position").c_str()), 1, &t.position[0]);
+            glUniform3fv(con.shader.location((arrEl + ".attenuation").c_str()), 1, &vec3(pl.constant, pl.linear, pl.quadratic)[0]); // todo, point to pl.constant?
+            glUniform3fv(con.shader.location((arrEl + ".ambient").c_str()), 1, &pl.ambient[0]);
+            glUniform3fv(con.shader.location((arrEl + ".diffuse").c_str()), 1, &pl.diffuse[0]);
+            glUniform3fv(con.shader.location((arrEl + ".specular").c_str()), 1, &pl.specular[0]);
+        });
+
+        int dirLightI = 0;
+        dlView.each([&](auto e, Transform &t, DirectionalLight &dl) {
+
+            std::string arrEl = "dirLights[" + std::to_string(dirLightI++) + "]";
+
+            auto transform = Room3D::transformFromComponent(t);
+            vec3 direction = transform * vec4(-mu::Y, 0);
+
+            glUniform3fv(con.shader.location((arrEl + ".direction").c_str()), 1, &direction[0]);
+            glUniform3fv(con.shader.location((arrEl + ".ambient").c_str()), 1, &dl.ambient[0]);
+            glUniform3fv(con.shader.location((arrEl + ".diffuse").c_str()), 1, &dl.diffuse[0]);
+            glUniform3fv(con.shader.location((arrEl + ".specular").c_str()), 1, &dl.specular[0]);
+
+            auto *sr = con.shadows ? room->entities.try_get<ShadowRenderer>(e) : NULL;
+            glUniform1i(con.shader.location((arrEl + ".hasShadow").c_str()), sr ? 1 : 0);
+            if (sr)
+            {
+                assert(sr->fbo != NULL && sr->fbo->depthTexture != NULL);
+                sr->fbo->depthTexture->bind(++texSlot, con.shader, (arrEl + ".shadowMap").c_str());
+                glUniformMatrix4fv(con.shader.location((arrEl + ".shadowSpace").c_str()), 1, GL_FALSE, &sr->shadowSpace[0][0]);
+            }
+        });
     }
+    else con.shader.use();
 
-    auto dlView = room->entities.view<Transform, DirectionalLight>();
-    int nrOfDirLights = dlView.size();
-    if (nrOfDirLights != prevNrOfDirLights)
-    {
-        ShaderDefinitions::defineInt("NR_OF_DIR_LIGHTS", nrOfDirLights);
-        prevNrOfDirLights = nrOfDirLights;
-    }
-
-    defaultShader.use();
-
-    glUniform3fv(defaultShader.location("camPosition"), 1, &cam.position[0]);
-
-    int pointLightI = 0;
-    plView.each([&](Transform &t, PointLight &pl) {
-
-        std::string arrEl = "pointLights[" + std::to_string(pointLightI++) + "]";
-
-        glUniform3fv(defaultShader.location((arrEl + ".position").c_str()), 1, &t.position[0]);
-        glUniform3fv(defaultShader.location((arrEl + ".attenuation").c_str()), 1, &vec3(pl.constant, pl.linear, pl.quadratic)[0]); // todo, point to pl.constant?
-        glUniform3fv(defaultShader.location((arrEl + ".ambient").c_str()), 1, &pl.ambient[0]);
-        glUniform3fv(defaultShader.location((arrEl + ".diffuse").c_str()), 1, &pl.diffuse[0]);
-        glUniform3fv(defaultShader.location((arrEl + ".specular").c_str()), 1, &pl.specular[0]);
-    });
-
-    int dirLightI = 0;
-    dlView.each([&](Transform &t, DirectionalLight &dl) {
-
-        std::string arrEl = "dirLights[" + std::to_string(dirLightI++) + "]";
-
-        auto transform = Room3D::transformFromComponent(t);
-        vec3 direction = transform * vec4(-mu::Y, 0);
-
-        glUniform3fv(defaultShader.location((arrEl + ".direction").c_str()), 1, &direction[0]);
-        glUniform3fv(defaultShader.location((arrEl + ".ambient").c_str()), 1, &dl.ambient[0]);
-        glUniform3fv(defaultShader.location((arrEl + ".diffuse").c_str()), 1, &dl.diffuse[0]);
-        glUniform3fv(defaultShader.location((arrEl + ".specular").c_str()), 1, &dl.specular[0]);
-    });
+    glUniform3fv(con.shader.location("camPosition"), 1, &con.cam.position[0]);
 
     room->entities.view<Transform, RenderModel>().each([&](auto e, Transform &t, RenderModel &rm) {
 
-        if (!(rm.visibilityMask & mask))
+        if (!(rm.visibilityMask & con.mask))
             return;
 
         auto &model = room->models[rm.modelName];
@@ -176,9 +243,10 @@ void RoomScreen::renderRoomWithCam(Camera &cam, uint mask)
 
         auto transform = Room3D::transformFromComponent(t);
 
-        mat4 mvp = cam.combined * transform;
-        glUniformMatrix4fv(defaultShader.location("mvp"), 1, GL_FALSE, &mvp[0][0]);
-        glUniformMatrix4fv(defaultShader.location("transform"), 1, GL_FALSE, &transform[0][0]);
+        mat4 mvp = con.cam.combined * transform;
+        glUniformMatrix4fv(con.shader.location("mvp"), 1, GL_FALSE, &mvp[0][0]);
+        if (con.materials)
+            glUniformMatrix4fv(con.shader.location("transform"), 1, GL_FALSE, &transform[0][0]);
 
         for (auto &modelPart : model->parts)
         {
@@ -191,25 +259,28 @@ void RoomScreen::renderRoomWithCam(Camera &cam, uint mask)
             if (!modelPart.mesh->vertBuffer->isUploaded())
                 modelPart.mesh->vertBuffer->upload(true);
 
-            glUniform3fv(defaultShader.location("diffuse"), 1, &modelPart.material->diffuse[0]);
+            if (con.materials)
+            {
+                glUniform3fv(con.shader.location("diffuse"), 1, &modelPart.material->diffuse[0]);
 
-            vec4 specAndExp = vec4(vec3(modelPart.material->specular) * modelPart.material->specular.a, modelPart.material->shininess);
-            glUniform4fv(defaultShader.location("specular"), 1, &specAndExp[0]);
+                vec4 specAndExp = vec4(vec3(modelPart.material->specular) * modelPart.material->specular.a, modelPart.material->shininess);
+                glUniform4fv(con.shader.location("specular"), 1, &specAndExp[0]);
 
-            bool useDiffuseTexture = modelPart.material->diffuseTexture.isSet();
-            glUniform1i(defaultShader.location("useDiffuseTexture"), useDiffuseTexture);
-            if (useDiffuseTexture)
-                modelPart.material->diffuseTexture->bind(1, defaultShader, "diffuseTexture");
+                bool useDiffuseTexture = modelPart.material->diffuseTexture.isSet();
+                glUniform1i(con.shader.location("useDiffuseTexture"), useDiffuseTexture);
+                if (useDiffuseTexture)
+                    modelPart.material->diffuseTexture->bind(texSlot + 1, con.shader, "diffuseTexture");
 
-            bool useSpecularMap = modelPart.material->specularMap.isSet();
-            glUniform1i(defaultShader.location("useSpecularMap"), useSpecularMap);
-            if (useSpecularMap)
-                modelPart.material->specularMap->bind(2, defaultShader, "specularMap");
+                bool useSpecularMap = modelPart.material->specularMap.isSet();
+                glUniform1i(con.shader.location("useSpecularMap"), useSpecularMap);
+                if (useSpecularMap)
+                    modelPart.material->specularMap->bind(texSlot + 2, con.shader, "specularMap");
 
-            bool useNormalMap = modelPart.material->normalMap.isSet();
-            glUniform1i(defaultShader.location("useNormalMap"), useNormalMap);
-            if (useNormalMap)
-                modelPart.material->normalMap->bind(3, defaultShader, "normalMap");
+                bool useNormalMap = modelPart.material->normalMap.isSet();
+                glUniform1i(con.shader.location("useNormalMap"), useNormalMap);
+                if (useNormalMap)
+                    modelPart.material->normalMap->bind(texSlot + 3, con.shader, "normalMap");
+            }
 
             modelPart.mesh->render(modelPart.meshPartIndex);
         }
