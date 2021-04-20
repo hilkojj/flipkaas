@@ -1,12 +1,22 @@
 precision mediump float;
 
-struct PointLight {
+struct PointLight
+{
     vec3 position;
 
 //    float constant;
 //    float linear;
 //    float quadratic;
     vec3 attenuation; // x: constant, y: linear, z: quadratic
+
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+
+struct DirectionalLight
+{
+    vec3 direction;
 
     vec3 ambient;
     vec3 diffuse;
@@ -33,7 +43,18 @@ uniform int useNormalMap;
 uniform sampler2D normalMap;
 
 uniform vec3 camPosition;
-uniform vec3 sunDirection;
+
+#ifndef NR_OF_DIR_LIGHTS
+#define NR_OF_DIR_LIGHTS 0
+#endif
+
+#ifndef NR_OF_POINT_LIGHTS
+#define NR_OF_POINT_LIGHTS 0
+#endif
+
+#if NR_OF_DIR_LIGHTS
+uniform DirectionalLight dirLights[NR_OF_DIR_LIGHTS];    // TODO: uniform buffer object?
+#endif
 
 #if NR_OF_POINT_LIGHTS
 uniform PointLight pointLights[NR_OF_POINT_LIGHTS];    // TODO: uniform buffer object?
@@ -65,6 +86,20 @@ void calcPointLight(PointLight light, vec3 normal, vec3 viewDir, inout vec3 tota
     totalSpecular  += light.specular * spec * attenuation;
 }
 
+void calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, inout vec3 totalDiffuse, inout vec3 totalSpecular, inout vec3 totalAmbient)
+{
+    // diffuse shading
+    float diff = max(dot(normal, -light.direction), 0.0);
+
+    // specular shading
+    vec3 reflectDir = reflect(light.direction, normal);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), specular.a);
+
+    // combine results
+    totalAmbient += light.ambient;
+    totalDiffuse += light.diffuse * diff;
+    totalSpecular += light.specular * spec;
+}
 
 // PHONG
 void main()
@@ -79,15 +114,13 @@ void main()
     }
     normal = normalize(v_TBN * normal);
 
-    float diffuseLight = 0.;//(dot(sunDirection, normal) + 1.) * .5;    // 0 - 1
-
     vec3 diffuseColor = diffuse;
     if (useDiffuseTexture == 1)
         diffuseColor = texture(diffuseTexture, v_textureCoord).rgb;
 
     colorOut = diffuseColor;
 
-    vec3 totalDiffuseLight = vec3(diffuseLight);
+    vec3 totalDiffuseLight = vec3(0);
     vec3 totalSpecularLight = vec3(0);
     vec3 totalAmbientLight = vec3(0);
 
@@ -101,14 +134,18 @@ void main()
     }
     #endif
 
+    #if NR_OF_DIR_LIGHTS
+    {   // Directional lights
+
+        for (int i = 0; i < NR_OF_DIR_LIGHTS; i++)
+            calcDirLight(dirLights[i], normal, viewDir, totalDiffuseLight, totalSpecularLight, totalAmbientLight);
+    }
+    #endif
+
+    // diffuse & ambient:
     colorOut *= vec3(max(totalAmbientLight.r, totalDiffuseLight.r), max(totalAmbientLight.g, totalDiffuseLight.g), max(totalAmbientLight.b, totalDiffuseLight.b));
 
     // specularity:
-
-//    vec3 reflectDir = reflect(-sunDirection, normal);
-//    float specularity = pow(max(dot(viewDir, reflectDir), 0.), specular.a);
-//    totalSpecularLight += vec3(specularity);
-
     vec3 specularColor = specular.rgb;
     if (useSpecularMap == 1)
         specularColor = texture(specularMap, v_textureCoord).rgb;

@@ -15,4 +15,6 @@ SpotLight:
   f
 
 DirectionalLight:
-  f
+  ambient: [vec3, vec3(0)]
+  diffuse: [vec3, vec3(1)]
+  specular: [vec3, vec3(1)]

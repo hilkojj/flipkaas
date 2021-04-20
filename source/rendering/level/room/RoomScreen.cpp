@@ -66,6 +66,18 @@ void RoomScreen::renderDebugStuff()
         // z-axis:
         lineRenderer.line(vec3(0, 0, cam.position.z - 1000), vec3(0, 0, cam.position.z + 1000), mu::Z);
     }
+    {
+        // directional lights:
+        room->entities.view<Transform, DirectionalLight>().each([&](Transform &t, DirectionalLight &dl) {
+
+            auto transform = Room3D::transformFromComponent(t);
+            vec3 direction = transform * vec4(-mu::Y, 0);
+
+            lineRenderer.axes(t.position, .1, vec3(1, 1, 0));
+            for (int i = 0; i < 100; i++)
+                lineRenderer.line(t.position + direction * float(i * .2), t.position + direction * float(i * .2 + .1), vec3(1, 1, 0));
+        });
+    }
 
     inspector.drawGUI(&cam, lineRenderer);
 
@@ -104,16 +116,22 @@ void RoomScreen::renderRoomWithCam(Camera &cam, uint mask)
 
     auto plView = room->entities.view<Transform, PointLight>();
     int nrOfPointLights = plView.size();
-
-    if (nrOfPointLights != prevNrOfLights)
+    if (nrOfPointLights != prevNrOfPointLights)
     {
         ShaderDefinitions::defineInt("NR_OF_POINT_LIGHTS", nrOfPointLights);
-        prevNrOfLights = nrOfPointLights;
+        prevNrOfPointLights = nrOfPointLights;
+    }
+
+    auto dlView = room->entities.view<Transform, DirectionalLight>();
+    int nrOfDirLights = dlView.size();
+    if (nrOfDirLights != prevNrOfDirLights)
+    {
+        ShaderDefinitions::defineInt("NR_OF_DIR_LIGHTS", nrOfDirLights);
+        prevNrOfDirLights = nrOfDirLights;
     }
 
     defaultShader.use();
 
-    glUniform3fv(defaultShader.location("sunDirection"), 1, &vec3(1, 0, 0)[0]);
     glUniform3fv(defaultShader.location("camPosition"), 1, &cam.position[0]);
 
     int pointLightI = 0;
@@ -126,6 +144,20 @@ void RoomScreen::renderRoomWithCam(Camera &cam, uint mask)
         glUniform3fv(defaultShader.location((arrEl + ".ambient").c_str()), 1, &pl.ambient[0]);
         glUniform3fv(defaultShader.location((arrEl + ".diffuse").c_str()), 1, &pl.diffuse[0]);
         glUniform3fv(defaultShader.location((arrEl + ".specular").c_str()), 1, &pl.specular[0]);
+    });
+
+    int dirLightI = 0;
+    dlView.each([&](Transform &t, DirectionalLight &dl) {
+
+        std::string arrEl = "dirLights[" + std::to_string(dirLightI++) + "]";
+
+        auto transform = Room3D::transformFromComponent(t);
+        vec3 direction = transform * vec4(-mu::Y, 0);
+
+        glUniform3fv(defaultShader.location((arrEl + ".direction").c_str()), 1, &direction[0]);
+        glUniform3fv(defaultShader.location((arrEl + ".ambient").c_str()), 1, &dl.ambient[0]);
+        glUniform3fv(defaultShader.location((arrEl + ".diffuse").c_str()), 1, &dl.diffuse[0]);
+        glUniform3fv(defaultShader.location((arrEl + ".specular").c_str()), 1, &dl.specular[0]);
     });
 
     room->entities.view<Transform, RenderModel>().each([&](auto e, Transform &t, RenderModel &rm) {
@@ -155,7 +187,9 @@ void RoomScreen::renderRoomWithCam(Camera &cam, uint mask)
                 modelPart.mesh->vertBuffer->upload(true);
 
             glUniform3fv(defaultShader.location("diffuse"), 1, &modelPart.material->diffuse[0]);
-            glUniform4fv(defaultShader.location("specular"), 1, &modelPart.material->specular[0]);
+
+            vec4 specAndExp = vec4(vec3(modelPart.material->specular) * modelPart.material->specular.a, modelPart.material->shininess);
+            glUniform4fv(defaultShader.location("specular"), 1, &specAndExp[0]);
 
             bool useDiffuseTexture = modelPart.material->diffuseTexture.isSet();
             glUniform1i(defaultShader.location("useDiffuseTexture"), useDiffuseTexture);
