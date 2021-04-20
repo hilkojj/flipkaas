@@ -68,9 +68,9 @@ void calcPointLight(PointLight light, vec3 normal, vec3 viewDir, inout vec3 tota
     // diffuse shading
     float diff = max(dot(normal, lightDir), 0.0);
 
-    // specular shading
-    vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), specular.a);
+    // specular shading (Blinn-Phong)
+    vec3 halfwayDir = normalize(lightDir + viewDir);
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), specular.a * 8.);
 
     // attenuation
     float constant = light.attenuation.x;
@@ -91,9 +91,9 @@ void calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, inout vec3 
     // diffuse shading
     float diff = max(dot(normal, -light.direction), 0.0);
 
-    // specular shading
-    vec3 reflectDir = reflect(light.direction, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), specular.a);
+    // specular shading (Blinn-Phong)
+    vec3 halfwayDir = normalize(-light.direction + viewDir);
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), specular.a * 8.);
 
     // combine results
     totalAmbient += light.ambient;
@@ -116,7 +116,10 @@ void main()
 
     vec3 diffuseColor = diffuse;
     if (useDiffuseTexture == 1)
+    {
         diffuseColor = texture(diffuseTexture, v_textureCoord).rgb;
+        diffuseColor = pow(diffuseColor, vec3(GAMMA)); // sRGB to linear space. https://learnopengl.com/Advanced-Lighting/Gamma-Correction
+    }
 
     colorOut = diffuseColor;
 
@@ -151,4 +154,7 @@ void main()
         specularColor = texture(specularMap, v_textureCoord).rgb;
 
     colorOut += specularColor * totalSpecularLight;
+
+    // gamma correction:
+    colorOut = pow(colorOut, vec3(1.0 / GAMMA));
 }

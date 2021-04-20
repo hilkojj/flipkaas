@@ -8,6 +8,7 @@ void EntityInspector3D::pickEntityGUI(const Camera *camera, DebugLineRenderer &r
 
 void EntityInspector3D::moveEntityGUI(const Camera *camera, DebugLineRenderer &renderer)
 {
+    moveEntity = false;
 }
 
 void EntityInspector3D::highLightEntity(entt::entity entity, const Camera *camera, DebugLineRenderer &renderer)

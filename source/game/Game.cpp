@@ -8,7 +8,7 @@ Game::Settings Game::settings;
 
 void setShaderDefinitions()
 {
-
+    ShaderDefinitions::defineFloat("GAMMA", Game::settings.graphics.gammaCorrection);
 }
 
 void Game::loadSettings()

@@ -77,6 +77,11 @@ void RoomScreen::renderDebugStuff()
             for (int i = 0; i < 100; i++)
                 lineRenderer.line(t.position + direction * float(i * .2), t.position + direction * float(i * .2 + .1), vec3(1, 1, 0));
         });
+
+        // point lights:
+        room->entities.view<Transform, PointLight>().each([&](Transform &t, PointLight &pl) {
+            lineRenderer.axes(t.position, .1, vec3(1, 1, 0));
+        });
     }
 
     inspector.drawGUI(&cam, lineRenderer);
