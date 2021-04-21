@@ -1,11 +1,24 @@
-#config:
-#  hpp_incl:
-#    - graphics/shader_asset.h
+config:
+  hpp_incl:
+    - graphics/3d/armature.h
 
 
 RenderModel:
   modelName: std::string
   visibilityMask: [uint, 1]
 
+PlayAnimation:
+  _flags:
+    - not_a_component
+    - json_with_keys
+
+  name: std::string
+  loop: [bool, true]
+  influence: [float, 1.]
+  timer: float
+  timeMultiplier: [float, 1.]
+
 Rigged:
-  f
+  playingAnimations: std::list<PlayAnimation>
+  _cpp_only:
+    boneAnimTransform: std::unordered_map<SharedBone, mat4>

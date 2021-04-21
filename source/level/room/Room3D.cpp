@@ -7,6 +7,7 @@
 #include "Room3D.h"
 #include "../../generated/Camera.hpp"
 #include "../../game/Game.h"
+#include "../../ecs/systems/ArmatureAnimationSystem.h"
 
 Room3D::Room3D()
 {
@@ -17,6 +18,8 @@ Room3D::Room3D()
         .add_(VertAttributes::NORMAL)
         .add_(VertAttributes::TANGENT)
         .add_(VertAttributes::TEX_COORDS);
+
+    addSystem(new ArmatureAnimationSystem("Armature animations"));
 }
 
 vec3 Room3D::getPosition(entt::entity e) const

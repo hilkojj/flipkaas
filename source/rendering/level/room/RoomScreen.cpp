@@ -178,7 +178,7 @@ void RoomScreen::renderDebugStuff()
     {
         glDisable(GL_DEPTH_TEST);
         glLineWidth(2.f);
-        room->entities.view<Transform, RenderModel, Rigged>().each([&](auto e, Transform &t, RenderModel &rm, auto) {
+        room->entities.view<Transform, RenderModel, Rigged>().each([&](auto e, Transform &t, RenderModel &rm, Rigged &rig) {
             auto &model = room->models[rm.modelName];
             if (!model) return;
 
@@ -198,6 +198,9 @@ void RoomScreen::renderDebugStuff()
                     mat4 mat = glm::translate(mat4(parent), bone->translation);
                     mat *= glm::toMat4(bone->rotation);
                     mat = glm::scale(mat, bone->scale);
+
+                    if (rig.boneAnimTransform.find(bone) != rig.boneAnimTransform.end())
+                        mat = mat * rig.boneAnimTransform[bone];
 
                     vec3 p0 = parent * vec4(0, 0, 0, 1);
                     vec3 p1 = mat * vec4(0, 0, 0, 1);
