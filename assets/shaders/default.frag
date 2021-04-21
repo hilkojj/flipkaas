@@ -1,4 +1,5 @@
 precision mediump float;
+precision mediump sampler2DShadow;
 
 struct PointLight
 {
@@ -26,7 +27,6 @@ struct DirectionalLight
 #if SHADOWS
 struct DirectionalShadowLight
 {
-    mediump sampler2DShadow shadowMap;
     mat4 shadowSpace;
     DirectionalLight light;
 };
@@ -70,6 +70,7 @@ uniform DirectionalLight dirLights[NR_OF_DIR_LIGHTS];    // TODO: uniform buffer
 
 #if NR_OF_DIR_SHADOW_LIGHTS
 uniform DirectionalShadowLight dirShadowLights[NR_OF_DIR_SHADOW_LIGHTS];    // TODO: uniform buffer object?
+uniform sampler2DShadow dirShadowMaps[NR_OF_DIR_SHADOW_LIGHTS];
 #endif
 
 #if NR_OF_POINT_LIGHTS
@@ -117,14 +118,14 @@ void calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, inout vec3 
     totalSpecular += light.specular * spec * (1. - shadow);
 }
 
-void calcDirShadowLight(DirectionalShadowLight light, vec3 normal, vec3 viewDir, inout vec3 totalDiffuse, inout vec3 totalSpecular, inout vec3 totalAmbient)
+void calcDirShadowLight(DirectionalShadowLight light, sampler2DShadow map, vec3 normal, vec3 viewDir, inout vec3 totalDiffuse, inout vec3 totalSpecular, inout vec3 totalAmbient)
 {
     float shadow = 0.;
     vec4 shadowMapCoords = light.shadowSpace * vec4(v_position, 1);
     shadowMapCoords = shadowMapCoords * .5 + .5;
     if (shadowMapCoords.x >= 0. && shadowMapCoords.x <= 1. && shadowMapCoords.y >= 0. && shadowMapCoords.y <= 1.)
     {
-        shadow = 1. - texture(light.shadowMap, shadowMapCoords.xyz);
+        shadow = 1. - texture(map, shadowMapCoords.xyz);
         // OpenGL will use the Z component to compare this fragment's depth to the depth on the shadow map
         // OpenGL will return a value between 0 and 1, based on how much shadow this fragment should have.
     }
@@ -178,8 +179,18 @@ void main()
     #if NR_OF_DIR_SHADOW_LIGHTS
     {   // Directional lights WITH SHADOW
 
-        for (int i = 0; i < NR_OF_DIR_SHADOW_LIGHTS; i++)
-            calcDirShadowLight(dirShadowLights[i], normal, viewDir, totalDiffuseLight, totalSpecularLight, totalAmbientLight);
+        #if (NR_OF_DIR_SHADOW_LIGHTS >= 1)
+        calcDirShadowLight(dirShadowLights[0], dirShadowMaps[0], normal, viewDir, totalDiffuseLight, totalSpecularLight, totalAmbientLight);
+        #endif
+        #if (NR_OF_DIR_SHADOW_LIGHTS >= 2)
+        calcDirShadowLight(dirShadowLights[1], dirShadowMaps[1], normal, viewDir, totalDiffuseLight, totalSpecularLight, totalAmbientLight);
+        #endif
+        #if (NR_OF_DIR_SHADOW_LIGHTS >= 3)
+        calcDirShadowLight(dirShadowLights[2], dirShadowMaps[2], normal, viewDir, totalDiffuseLight, totalSpecularLight, totalAmbientLight);
+        #endif
+        #if (NR_OF_DIR_SHADOW_LIGHTS >= 4)
+        calcDirShadowLight(dirShadowLights[3], dirShadowMaps[3], normal, viewDir, totalDiffuseLight, totalSpecularLight, totalAmbientLight);
+        #endif
     }
     #endif
 

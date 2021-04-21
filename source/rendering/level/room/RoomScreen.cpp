@@ -70,7 +70,7 @@ void RoomScreen::render(double deltaTime)
 
             if (!sr.fbo || sr.fbo->width != sr.resolution.x || sr.fbo->height != sr.resolution.y)
             {
-                sr.fbo = std::make_shared<FrameBuffer>(sr.resolution.x, sr.resolution.y, 4);
+                sr.fbo = std::make_shared<FrameBuffer>(sr.resolution.x, sr.resolution.y);
                 sr.fbo->addDepthTexture(GL_LINEAR, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
             }
@@ -278,7 +278,7 @@ void RoomScreen::renderRoom(const RenderContext &con)
         int dirShadowLightI = 0;
         dShadowLView.each([&](auto e, Transform &t, DirectionalLight &dl, ShadowRenderer &sr) {
 
-            std::string arrEl = "dirShadowLights[" + std::to_string(dirShadowLightI++) + "]";
+            std::string arrEl = "dirShadowLights[" + std::to_string(dirShadowLightI) + "]";
 
             auto transform = Room3D::transformFromComponent(t);
             vec3 direction = transform * vec4(-mu::Y, 0);
@@ -289,8 +289,9 @@ void RoomScreen::renderRoom(const RenderContext &con)
             glUniform3fv(con.shader.location((arrEl + ".light.specular").c_str()), 1, &dl.specular[0]);
 
             assert(sr.fbo != NULL && sr.fbo->depthTexture != NULL);
-            sr.fbo->depthTexture->bind(++texSlot, con.shader, (arrEl + ".shadowMap").c_str());
+            sr.fbo->depthTexture->bind(++texSlot, con.shader, ("dirShadowMaps[" + std::to_string(dirShadowLightI) + "]").c_str());
             glUniformMatrix4fv(con.shader.location((arrEl + ".shadowSpace").c_str()), 1, GL_FALSE, &sr.shadowSpace[0][0]);
+            dirShadowLightI++;
         });
     }
     else con.shader.use();
