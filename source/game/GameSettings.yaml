@@ -10,6 +10,9 @@ GraphicsSettings:
   gammaCorrection: [float, 2.2]
   shadows: [bool, true]
 
+  debugShadowBoxes: [bool, true]
+  debugArmatures: [bool, true]
+
 KeyInputSettings:
   _flags:
     - not_a_component

@@ -10,6 +10,7 @@ profiler_dump_*.json
 source/generated/*
 
 *.blend1
+*.g3dj
 
 desktop/out/*
 html/out/*

@@ -1,15 +1,18 @@
 
-loadModels("assets/models/test.ubj", false)
+loadModels("assets/models/cubeman.ubj", false)
 
 function create(player)
 
     setName(player, "player")
 
     setComponents(player, {
-        Transform(),
+        Transform {
+            position = vec3(0, -1, 3)
+        },
         RenderModel {
-            modelName = "Suzanne"
-        }
+            modelName = "Cubeman"
+        },
+        Rigged()
     })
 
 end

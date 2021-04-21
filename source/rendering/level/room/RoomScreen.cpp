@@ -116,8 +116,6 @@ void RoomScreen::renderDebugStuff()
     auto &cam = *room->camera;
     lineRenderer.projection = cam.combined;
 
-    static bool showShadowBoxes = true;
-
     {
         // x-axis:
         lineRenderer.line(vec3(cam.position.x - 1000, 0, 0), vec3(cam.position.x + 1000, 0, 0), mu::X);
@@ -137,7 +135,7 @@ void RoomScreen::renderDebugStuff()
             for (int i = 0; i < 100; i++)
                 lineRenderer.line(t.position + direction * float(i * .2), t.position + direction * float(i * .2 + .1), vec3(1, 1, 0));
 
-            if (showShadowBoxes) if (ShadowRenderer *sr = room->entities.try_get<ShadowRenderer>(e))
+            if (Game::settings.graphics.debugShadowBoxes) if (ShadowRenderer *sr = room->entities.try_get<ShadowRenderer>(e))
             {
                 auto orthoCam = camForDirLight(t, *sr);
 
@@ -176,6 +174,73 @@ void RoomScreen::renderDebugStuff()
             lineRenderer.axes(t.position, .1, vec3(1, 1, 0));
         });
     }
+    if (Game::settings.graphics.debugArmatures)
+    {
+        glDisable(GL_DEPTH_TEST);
+        glLineWidth(2.f);
+        room->entities.view<Transform, RenderModel, Rigged>().each([&](auto e, Transform &t, RenderModel &rm, auto) {
+            auto &model = room->models[rm.modelName];
+            if (!model) return;
+
+            auto transform = Room3D::transformFromComponent(t);
+
+            for (auto &modelPart : model->parts)
+            {
+                if (!modelPart.armature) continue;
+
+                auto &arm = *modelPart.armature.get();
+
+                int depth = 0;
+                std::function<void(SharedBone &, mat4 &)> renderBone;
+                renderBone = [&] (SharedBone &bone, mat4 &parent) {
+                    depth++;
+
+                    mat4 mat = glm::translate(mat4(parent), bone->translation);
+                    mat *= glm::toMat4(bone->rotation);
+                    mat = glm::scale(mat, bone->scale);
+
+                    vec3 p0 = parent * vec4(0, 0, 0, 1);
+                    vec3 p1 = mat * vec4(0, 0, 0, 1);
+                    vec3 p2 = mat * vec4(0, 0, -.3, 1); // slight offset just for debugging
+
+                    vec3 color = std::vector<vec3>{
+                        vec3(52, 235, 164),
+                        vec3(233, 166, 245),
+                        vec3(242, 214, 131)
+                    }[depth % 3] / 255.f;
+
+                    if (depth > 1) lineRenderer.line(p0, p1, color);
+                    lineRenderer.axes(p1, .05, vec3(1));
+
+                    vec2 screenPos = cam.projectPixels(p2);
+                    {
+                        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+                        ImGui::SetNextWindowBgAlpha(0);
+                        ImGui::SetNextWindowPos(ImVec2(screenPos.x - 5, screenPos.y - 5));
+                        ImGui::SetNextWindowSize(ImVec2(200, 30));
+                        ImGui::Begin((bone->name + "__namepopup__").c_str(), NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoInputs);
+                        ImGui::SetWindowFontScale(.9);
+                        ImGui::Text("%s", splitString(bone->name, "__").back().c_str());
+                        ImGui::End();
+                        ImGui::PopStyleVar();
+                    }
+
+                    for (auto &child : bone->children)
+                        renderBone(child, mat);
+
+                    if (bone->children.empty())
+                        lineRenderer.line(p1, p2, mu::X);
+                    depth--;
+                };
+                if (arm.root)
+                    renderBone(arm.root, transform);
+
+                break;
+            }
+        });
+        glEnable(GL_DEPTH_TEST);
+        glLineWidth(1.f);
+    }
 
     inspector.drawGUI(&cam, lineRenderer);
 
@@ -184,7 +249,8 @@ void RoomScreen::renderDebugStuff()
     if (ImGui::BeginMenu("Room"))
     {
         ImGui::Separator();
-        ImGui::Checkbox("Show shadow boxes", &showShadowBoxes);
+        ImGui::Checkbox("Show shadow boxes", &Game::settings.graphics.debugShadowBoxes);
+        ImGui::Checkbox("Show armatures", &Game::settings.graphics.debugArmatures);
 
         if (ImGui::MenuItem("View as JSON"))
         {

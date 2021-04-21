@@ -7,3 +7,5 @@ RenderModel:
   modelName: std::string
   visibilityMask: [uint, 1]
 
+Rigged:
+  f
