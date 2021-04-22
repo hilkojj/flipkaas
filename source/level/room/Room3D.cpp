@@ -19,6 +19,13 @@ Room3D::Room3D()
         .add_(VertAttributes::TANGENT)
         .add_(VertAttributes::TEX_COORDS);
 
+    loadedRiggedMeshAttributes = loadedMeshAttributes;
+    loadedRiggedMeshAttributes
+        .add_(VertAttributes::BONE_WEIGHT_0)
+        .add_(VertAttributes::BONE_WEIGHT_1)
+        .add_(VertAttributes::BONE_WEIGHT_2)
+        .add_(VertAttributes::BONE_WEIGHT_3);
+
     addSystem(new ArmatureAnimationSystem("Armature animations"));
 }
 
@@ -44,33 +51,10 @@ void Room3D::initializeLuaEnvironment()
         return cameraEntity;
     };
     luaEnvironment["loadModels"] = [&] (const char *path, bool force) {
-        if (!force && modelFileLoadTime.find(path) != modelFileLoadTime.end())
-            return false;
-
-        std::unordered_map<Mesh *, bool> calculatedTangents;
-
-        for (auto &model : JsonModelLoader::fromUbjsonFile(path, &loadedMeshAttributes))
-        {
-            if (!uploadingTo || uploadingTo->isUploaded())
-                uploadingTo = VertBuffer::with(loadedMeshAttributes);
-
-            models[model->name] = model;
-            for (auto &part : model->parts)
-            {
-                if (!part.mesh)
-                    continue;
-                if (!calculatedTangents[part.mesh.get()])
-                {
-                    for (int i = 0; i < part.mesh->parts.size(); i++)
-                        TangentCalculator::addTangentsToMesh(part.mesh, i);
-                    calculatedTangents[part.mesh.get()] = true;
-                }
-                if (!part.mesh->vertBuffer)
-                    uploadingTo->add(part.mesh);
-            }
-        }
-        modelFileLoadTime[path] = glfwGetTime();
-        return true;
+        loadModels(path, force, &uploadingTo, loadedMeshAttributes);
+    };
+    luaEnvironment["loadRiggedModels"] = [&] (const char *path, bool force) {
+        loadModels(path, force, &uploadingRiggedTo, loadedRiggedMeshAttributes);
     };
 }
 
@@ -188,4 +172,35 @@ void Room3D::updateOrCreateCamera(double deltaTime)
             camera->update();
         }
     }
+}
+
+bool Room3D::loadModels(const char *path, bool force, VertBuffer **vbPtr, const VertAttributes &attrs)
+{
+    if (!force && modelFileLoadTime.find(path) != modelFileLoadTime.end())
+        return false;
+
+    std::unordered_map<Mesh *, bool> calculatedTangents;
+
+    for (auto &model : JsonModelLoader::fromUbjsonFile(path, &attrs))
+    {
+        if (!*vbPtr || (*vbPtr)->isUploaded())
+            *vbPtr = VertBuffer::with(attrs);
+
+        models[model->name] = model;
+        for (auto &part : model->parts)
+        {
+            if (!part.mesh)
+                continue;
+            if (!calculatedTangents[part.mesh.get()])
+            {
+                for (int i = 0; i < part.mesh->parts.size(); i++)
+                    TangentCalculator::addTangentsToMesh(part.mesh, i);
+                calculatedTangents[part.mesh.get()] = true;
+            }
+            if (!part.mesh->vertBuffer)
+                (*vbPtr)->add(part.mesh);
+        }
+    }
+    modelFileLoadTime[path] = glfwGetTime();
+    return true;
 }

@@ -8,7 +8,7 @@ function create(cam, args)
 
     setComponents(cam, {
         Transform {
-            position = vec3(10, 1, 10)
+            position = vec3(2, 1, 10)
         },
         CameraPerspective {
             fieldOfView = 75,

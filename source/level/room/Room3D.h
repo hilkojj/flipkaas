@@ -11,14 +11,16 @@
 class Room3D : public Room
 {
     std::unordered_map<std::string, long> modelFileLoadTime;
-    VertBuffer *uploadingTo = NULL;
+    VertBuffer
+        *uploadingTo = NULL,
+        *uploadingRiggedTo = NULL;
 
   public:
 
     Camera *camera = NULL;
     entt::entity cameraEntity = entt::null;
 
-    VertAttributes loadedMeshAttributes;
+    VertAttributes loadedMeshAttributes, loadedRiggedMeshAttributes;
     std::unordered_map<std::string, SharedModel> models;
 
     Room3D();
@@ -39,6 +41,8 @@ class Room3D : public Room
     void initializeLuaEnvironment() override;
 
     void updateOrCreateCamera(double deltaTime);
+
+    bool loadModels(const char *path, bool force, VertBuffer **, const VertAttributes &);
 
 };
 

@@ -10,18 +10,22 @@
 #include "EntityInspector3D.h"
 #include "../../../level/room/Room3D.h"
 
+struct RenderModel;
+struct Rigged;
+
 class RoomScreen : public Screen
 {
     struct RenderContext
     {
         Camera &cam;
-        ShaderProgram &shader;
+        ShaderProgram &shader, &riggedShader;
         uint mask;
         bool
             lights = true,
             uploadLightData = true,
             shadows = true,
-            materials = true;
+            materials = true,
+            riggedModels = true;
     };
 
     bool showRoomEditor = false;
@@ -30,7 +34,7 @@ class RoomScreen : public Screen
 
     EntityInspector3D inspector;
 
-    ShaderAsset defaultShader, depthShader;
+    ShaderAsset defaultShader, riggedShader, depthShader;
 
     int prevNrOfPointLights = -1, prevNrOfDirLights = -1, prevNrOfDirShadowLights = -1;
 
@@ -51,6 +55,10 @@ class RoomScreen : public Screen
   private:
 
     void renderRoom(const RenderContext &);
+
+    void initializeShader(const RenderContext &, ShaderProgram &);
+
+    void renderModel(const RenderContext &, ShaderProgram &, entt::entity, const Transform &, const RenderModel &, const Rigged *rig=NULL);
 };
 
 

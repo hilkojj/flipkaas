@@ -10,6 +10,7 @@ void setShaderDefinitions()
 {
     ShaderDefinitions::defineFloat("GAMMA", Game::settings.graphics.gammaCorrection);
     ShaderDefinitions::defineInt("SHADOWS", Game::settings.graphics.shadows);
+    ShaderDefinitions::defineInt("MAX_BONES", Game::settings.graphics.maxArmatureBones);
 }
 
 void Game::loadSettings()
