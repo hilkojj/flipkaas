@@ -10,28 +10,40 @@ void ArmatureAnimationSystem::update(double deltaTime, EntityEngine *engine)
 
     room->entities.view<Transform, RenderModel, Rigged>().each([&](Transform &t, RenderModel &rm, Rigged &rig) {
 
-        rig.boneAnimTransform.clear();
+        rig.bonePoseTransform.clear();
 
         auto &model = room->models[rm.modelName];
         if (!model) return;
 
+        SharedArmature arm;
+        for (auto &part : model->parts)
+        {
+            if (!part.armature || !part.armature->root) continue;
+            arm = part.armature;
+            break;
+        }
+        if (!arm) return;
+
         for (auto &play : rig.playingAnimations)
         {
+            if (arm->animations.find(play.name) == arm->animations.end())
+                continue;
+
+            auto &anim = arm->animations[play.name];
             play.timer += deltaTime * play.timeMultiplier;
 
-            for (auto &part : model->parts)
-            {
-                if (!part.armature || part.armature->animations.find(play.name) == part.armature->animations.end())
-                    return;
+            std::function<void(SharedBone &, const mat4 &, const mat4 &)> calcBone;
+            calcBone = [&] (SharedBone &bone, const mat4 &originalParent, const mat4 &poseParent) {
 
-                auto &anim = part.armature->animations[play.name];
+                mat4 boneTransform = bone->getBoneSpaceTransform(); // boneTransform = BONE SPACE in relation to parent bone!
 
-                for (auto &bone : part.bones)
+                mat4 ori = originalParent * boneTransform; // ori = MODEL SPACE
+
+                mat4 pose = poseParent * boneTransform;  // pose = MODEL SPACE
+
+                auto &keyframes = anim.keyFramesPerBone[bone];
+                if (keyframes.size() >= 2)
                 {
-                    auto &keyframes = anim.keyFramesPerBone[bone];
-                    if (keyframes.size() < 2)
-                        continue;
-
                     int kfI;
                     for (kfI = 0; kfI < keyframes.size() - 2; kfI++)
                         if (keyframes[kfI + 1].keyTime >= play.timer)
@@ -43,20 +55,20 @@ void ArmatureAnimationSystem::update(double deltaTime, EntityEngine *engine)
                     float progress = (play.timer - kf0.keyTime) / (kf1.keyTime - kf0.keyTime);
                     progress = min(1.f, progress);
 
-                    mat4 mat = glm::translate(mat4(1.f), bone->translation);
-                    mat *= glm::toMat4(bone->rotation);
-                    mat = glm::scale(mat, bone->scale);
+                    mat4 interpolatedBoneTransform = glm::translate(mat4(1), mix(kf0.translation, kf1.translation, progress));
+                    interpolatedBoneTransform *= glm::toMat4(slerp(kf0.rotation, kf1.rotation, progress));
+                    interpolatedBoneTransform = glm::scale(interpolatedBoneTransform, mix(kf0.scale, kf1.scale, progress));
+                    // interpolatedBoneTransform = BONE SPACE in relation to parent bone!
 
-                    auto &boneTrans = rig.boneAnimTransform[bone] = mat4(1);
-
-                    boneTrans = glm::translate(mat4(1), mix(kf0.translation, kf1.translation, progress));
-                    boneTrans *= glm::toMat4(slerp(kf0.rotation, kf1.rotation, progress));
-                    boneTrans = glm::scale(boneTrans, mix(kf0.scale, kf1.scale, progress));
-
-                    boneTrans = inverse(mat) * boneTrans;
+                    pose = poseParent * interpolatedBoneTransform;  // pose = MODEL SPACE
                 }
-            }
 
+                rig.bonePoseTransform[bone] = pose * inverse(ori);     // NOT IN MODEL SPACE! "Vertex space"?
+
+                for (auto &child : bone->children)
+                    calcBone(child, ori, pose);
+            };
+            calcBone(arm->root, mat4(1.), mat4(1.));
         }
 
     });

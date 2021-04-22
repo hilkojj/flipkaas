@@ -21,4 +21,4 @@ PlayAnimation:
 Rigged:
   playingAnimations: std::list<PlayAnimation>
   _cpp_only:
-    boneAnimTransform: std::unordered_map<SharedBone, mat4>
+    bonePoseTransform: std::unordered_map<SharedBone, mat4>

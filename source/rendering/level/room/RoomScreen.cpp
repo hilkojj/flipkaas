@@ -191,21 +191,28 @@ void RoomScreen::renderDebugStuff()
                 auto &arm = *modelPart.armature.get();
 
                 int depth = 0;
-                std::function<void(SharedBone &, mat4 &)> renderBone;
-                renderBone = [&] (SharedBone &bone, mat4 &parent) {
+                std::function<void(SharedBone &, mat4 &, mat4 &)> renderBone;
+                renderBone = [&] (SharedBone &bone, mat4 &parent, mat4 &parentBonePoseTransform) {
                     depth++;
 
-                    mat4 mat = glm::translate(mat4(parent), bone->translation);
-                    mat *= glm::toMat4(bone->rotation);
-                    mat = glm::scale(mat, bone->scale);
+                    mat4 mat = parent * bone->getBoneSpaceTransform();
 
-                    if (rig.boneAnimTransform.find(bone) != rig.boneAnimTransform.end())
-                        mat = mat * rig.boneAnimTransform[bone];
-
-                    vec3 p0 = parent * vec4(0, 0, 0, 1);
-                    vec3 p1 = mat * vec4(0, 0, 0, 1);
+                    vec3 p0 = parent * vec4(mu::ZERO_3, 1);
+                    p0 = parentBonePoseTransform * vec4(p0, 1);
+                    vec3 p1 = mat * vec4(mu::ZERO_3, 1);
                     vec3 p2 = mat * vec4(0, 0, -.3, 1); // slight offset just for debugging
 
+                    mat4 bonePoseTransform(1);
+                    // transform the "vertices" by the bonePoseTransforms, just like the vertex shader should do.
+                    if (rig.bonePoseTransform.find(bone) != rig.bonePoseTransform.end())
+                    {
+                        bonePoseTransform = rig.bonePoseTransform[bone];  // NOT MODEL SPACE. Vertices should be multiplied by this.
+                        p1 = bonePoseTransform * vec4(p1, 1);
+                        p2 = bonePoseTransform * vec4(p2, 1);
+                    }
+                    p0 = transform * vec4(p0, 1);
+                    p1 = transform * vec4(p1, 1);
+                    p2 = transform * vec4(p2, 1);
                     vec3 color = std::vector<vec3>{
                         vec3(52, 235, 164),
                         vec3(233, 166, 245),
@@ -229,14 +236,15 @@ void RoomScreen::renderDebugStuff()
                     }
 
                     for (auto &child : bone->children)
-                        renderBone(child, mat);
+                        renderBone(child, mat, bonePoseTransform);
 
                     if (bone->children.empty())
                         lineRenderer.line(p1, p2, mu::X);
                     depth--;
                 };
+                mat4 id(1);
                 if (arm.root)
-                    renderBone(arm.root, transform);
+                    renderBone(arm.root, id, id);
 
                 break;
             }
