@@ -34,7 +34,7 @@ class RoomScreen : public Screen
 
     EntityInspector3D inspector;
 
-    ShaderAsset defaultShader, riggedShader, depthShader;
+    ShaderAsset defaultShader, riggedShader, depthShader, riggedDepthShader;
 
     int prevNrOfPointLights = -1, prevNrOfDirLights = -1, prevNrOfDirShadowLights = -1;
 

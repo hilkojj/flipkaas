@@ -1,28 +1,38 @@
 layout(location = 0) in vec3 a_position;
-layout(location = 1) in vec3 a_normal;
-layout(location = 2) in vec3 a_tangent;
-layout(location = 3) in vec2 a_textureCoord;
+
+layout(location = 4) in vec2 a_boneIdAndWeight0;
+layout(location = 5) in vec2 a_boneIdAndWeight1;
+layout(location = 6) in vec2 a_boneIdAndWeight2;
+layout(location = 7) in vec2 a_boneIdAndWeight3;
 
 uniform mat4 mvp;
-uniform mat4 transform;
 
-out vec3 v_position;
-out vec2 v_textureCoord;
-out mat3 v_TBN;
+uniform mat4 bonePoseTransforms[MAX_BONES];
 
+void applyBone(vec2 boneIdAndWeight, inout vec4 totalLocalPos, inout float w)
+{
+    int boneId = int(boneIdAndWeight.x);
+    float weight = boneIdAndWeight.y;
+
+    w += weight;
+
+    mat4 poseTransform = bonePoseTransforms[boneId];
+
+    vec4 posePosition = poseTransform * vec4(a_position, 1.);
+    totalLocalPos += posePosition * weight;
+}
 
 void main()
 {
-    gl_Position = mvp * vec4(a_position, 1.0);
+    float weight = 0.;
+    vec4 totalLocalPos = vec4(0.0);
 
-    v_position = vec3(transform * vec4(a_position, 1.0));
-    v_textureCoord = a_textureCoord;
+    applyBone(a_boneIdAndWeight0, totalLocalPos, weight);
+    applyBone(a_boneIdAndWeight1, totalLocalPos, weight);
+    applyBone(a_boneIdAndWeight2, totalLocalPos, weight);
+    applyBone(a_boneIdAndWeight3, totalLocalPos, weight);
 
-    mat3 dirTrans = mat3(transform);
+    totalLocalPos.xyz += a_position * (1. - weight);
 
-    vec3 normal = normalize(dirTrans * a_normal);
-    vec3 tangent = normalize(dirTrans * a_tangent);
-    vec3 bitan = normalize(cross(normal, tangent)); // todo, is normalize needed?
-
-    v_TBN = mat3(tangent, bitan, normal);
+    gl_Position = mvp * vec4(totalLocalPos.xyz, 1.0);
 }

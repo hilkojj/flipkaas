@@ -25,6 +25,10 @@ RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
         depthShader(
             "depth shader",
             "shaders/depth.vert", "shaders/depth.frag"
+        ),
+        riggedDepthShader(
+                "rigged depth shader",
+                "shaders/rigged_depth.vert", "shaders/depth.frag"
         )
 {
     assert(room != NULL);
@@ -82,7 +86,7 @@ void RoomScreen::render(double deltaTime)
             sr.fbo->bind();
             glClear(GL_DEPTH_BUFFER_BIT);
 
-            RenderContext shadowMapCon { orthoCam, depthShader, depthShader };
+            RenderContext shadowMapCon { orthoCam, depthShader, riggedDepthShader };
             shadowMapCon.mask = sr.visibilityMask;
             shadowMapCon.lights = false;
             shadowMapCon.materials = false;
@@ -337,8 +341,6 @@ void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, en
     if (con.materials)
         glUniformMatrix4fv(shader.location("transform"), 1, GL_FALSE, &transform[0][0]);
 
-    bool uploadedBones = false;
-
     for (auto &modelPart : model->parts)
     {
         if (!modelPart.material || !modelPart.mesh)
@@ -373,17 +375,16 @@ void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, en
                 modelPart.material->normalMap->bind(2, shader, "normalMap");
         }
 
-        if (rig && !uploadedBones && !modelPart.armature->bones.empty())
+        if (rig && !modelPart.bones.empty())
         {
-            std::vector<mat4> matrices(modelPart.armature->bones.size());
+            std::vector<mat4> matrices(modelPart.bones.size());
             int i = 0;
-            for (auto &bone : modelPart.armature->bones)
+            for (auto &bone : modelPart.bones)
             {
                 auto it = rig->bonePoseTransform.find(bone);
                 matrices[i++] = it == rig->bonePoseTransform.end() ? mat4(1) : it->second;
             }
             glUniformMatrix4fv(shader.location("bonePoseTransforms"), matrices.size(), false, &matrices[0][0][0]);
-            uploadedBones = true;
         }
 
         modelPart.mesh->render(modelPart.meshPartIndex);

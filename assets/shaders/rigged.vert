@@ -24,7 +24,7 @@ void applyBone(vec2 boneIdAndWeight, inout vec4 totalLocalPos, inout vec4 totalN
 
     w += weight;
 
-    mat4 poseTransform = bonePoseTransforms[boneId + 1];
+    mat4 poseTransform = bonePoseTransforms[boneId];
 
     vec4 posePosition = poseTransform * vec4(a_position, 1.);
     totalLocalPos += posePosition * weight;
