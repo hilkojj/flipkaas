@@ -37,7 +37,9 @@ in vec2 v_textureCoord;
 in mat3 v_TBN;
 
 layout (location = 0) out vec3 colorOut;
+#if BLOOM
 layout (location = 1) out vec3 brightColor;
+#endif
 
 uniform vec3 diffuse;
 uniform vec4 specular;  // 4th component is Exponent
@@ -213,10 +215,12 @@ void main()
     // gamma correction:
     colorOut = pow(colorOut, vec3(1.0 / GAMMA));
 
+    #if BLOOM
     // check whether fragment output is higher than threshold, if so output as brightness color
     float brightness = dot(colorOut, vec3(0.2126, 0.7152, 0.0722));
-    if (brightness > 1.7)
+    if (brightness > BLOOM_THRESHOLD)
         brightColor = colorOut;
     else
         brightColor = vec3(0);
+    #endif
 }

@@ -125,11 +125,12 @@ void RoomScreen::render(double deltaTime)
 
     FrameBuffer *bloomBlurFbo = NULL;
 
+    if (Game::settings.graphics.bloomBlurIterations)
     {
+        gu::profiler::Zone z1("bloom");
         bool horizontal = true, firstIteration = true;
-        int amount = 10;
         blurShader.use();
-        for (unsigned int i = 0; i < amount; i++)
+        for (unsigned int i = 0; i < Game::settings.graphics.bloomBlurIterations; i++)
         {
             bloomBlurFbo = blurPingPongFbos[horizontal];
             bloomBlurFbo->bind();
@@ -163,16 +164,21 @@ void RoomScreen::onResize()
     delete fbo;
     fbo = new FrameBuffer(gu::widthPixels, gu::heightPixels, Game::settings.graphics.msaaSamples);
     fbo->addColorTexture(GL_RGBA16F, GL_RGBA, GL_NEAREST, GL_NEAREST, GL_FLOAT);  // normal HDR color
-    fbo->addColorTexture(GL_RGBA16F, GL_RGBA, GL_NEAREST, GL_NEAREST, GL_FLOAT);  // bright HDR color, to be blurred.
+    if (Game::settings.graphics.bloomBlurIterations)
+        fbo->addColorTexture(GL_RGBA16F, GL_RGBA, GL_NEAREST, GL_NEAREST, GL_FLOAT);  // bright HDR color, to be blurred.
     fbo->addDepthBuffer(GL_DEPTH24_STENCIL8);   // GL_DEPTH24_STENCIL8 is the same format as the default depth buffer. This is necessary for blitting to the default buffer.
 
     for (int i = 0; i < 2; i++)
     {
         delete blurPingPongFbos[i];
-        blurPingPongFbos[i] = new FrameBuffer(gu::widthPixels, gu::heightPixels);//, Game::settings.graphics.msaaSamples);
-        blurPingPongFbos[i]->addColorTexture(GL_RGBA16F, GL_RGBA, GL_NEAREST, GL_NEAREST, GL_FLOAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        blurPingPongFbos[i] = NULL;
+        if (Game::settings.graphics.bloomBlurIterations)
+        {
+            blurPingPongFbos[i] = new FrameBuffer(gu::widthPixels, gu::heightPixels);//, Game::settings.graphics.msaaSamples);
+            blurPingPongFbos[i]->addColorTexture(GL_RGBA16F, GL_RGBA, GL_NEAREST, GL_NEAREST, GL_FLOAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        }
     }
 }
 

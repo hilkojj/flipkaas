@@ -7,8 +7,11 @@ GraphicsSettings:
     - json_with_keys
 
   imGuiFont: [string, "assets/fonts/ruda/Ruda-Bold.ttf"]
+
   gammaCorrection: [float, 2.2]
   msaaSamples: [uint8, 4]
+  bloomBlurIterations: [uint8, 8]
+  bloomThreshold: [float, 1.7]
   shadows: [bool, true]
   maxArmatureBones: [uint, 64]
 

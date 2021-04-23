@@ -11,6 +11,8 @@ void setShaderDefinitions()
     ShaderDefinitions::defineFloat("GAMMA", Game::settings.graphics.gammaCorrection);
     ShaderDefinitions::defineInt("SHADOWS", Game::settings.graphics.shadows);
     ShaderDefinitions::defineInt("MAX_BONES", Game::settings.graphics.maxArmatureBones);
+    ShaderDefinitions::defineInt("BLOOM", Game::settings.graphics.bloomBlurIterations);
+    ShaderDefinitions::defineFloat("BLOOM_THRESHOLD", Game::settings.graphics.bloomThreshold);
 }
 
 void Game::loadSettings()
