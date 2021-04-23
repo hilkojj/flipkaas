@@ -50,6 +50,8 @@ uniform sampler2D specularMap;
 uniform int useNormalMap;
 uniform sampler2D normalMap;
 
+uniform int useShadows; // todo: different shader for models that dont receive shadows? Sampling shadowmaps is expensive
+
 uniform vec3 camPosition;
 
 #ifndef NR_OF_DIR_LIGHTS
@@ -121,13 +123,16 @@ void calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, inout vec3 
 void calcDirShadowLight(DirectionalShadowLight light, sampler2DShadow map, vec3 normal, vec3 viewDir, inout vec3 totalDiffuse, inout vec3 totalSpecular, inout vec3 totalAmbient)
 {
     float shadow = 0.;
-    vec4 shadowMapCoords = light.shadowSpace * vec4(v_position, 1);
-    shadowMapCoords = shadowMapCoords * .5 + .5;
-    if (shadowMapCoords.x >= 0. && shadowMapCoords.x <= 1. && shadowMapCoords.y >= 0. && shadowMapCoords.y <= 1.)
+    if (useShadows == 1)
     {
-        shadow = 1. - texture(map, shadowMapCoords.xyz);
-        // OpenGL will use the Z component to compare this fragment's depth to the depth on the shadow map
-        // OpenGL will return a value between 0 and 1, based on how much shadow this fragment should have.
+        vec4 shadowMapCoords = light.shadowSpace * vec4(v_position, 1);
+        shadowMapCoords = shadowMapCoords * .5 + .5;
+        if (shadowMapCoords.x >= 0. && shadowMapCoords.x <= 1. && shadowMapCoords.y >= 0. && shadowMapCoords.y <= 1.)
+        {
+            shadow = 1. - texture(map, shadowMapCoords.xyz);
+            // OpenGL will use the Z component to compare this fragment's depth to the depth on the shadow map
+            // OpenGL will return a value between 0 and 1, based on how much shadow this fragment should have.
+        }
     }
     calcDirLight(light.light, normal, viewDir, totalDiffuse, totalSpecular, totalAmbient, shadow);
 }

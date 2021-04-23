@@ -9,7 +9,9 @@ function create(test)
         Transform(),
         RenderModel {
             modelName = "Suzanne"
-        }
+        },
+        ShadowCaster(),
+        ShadowReceiver()
     })
 
 end

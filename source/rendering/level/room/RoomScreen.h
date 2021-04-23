@@ -21,6 +21,7 @@ class RoomScreen : public Screen
         Camera &cam;
         ShaderProgram &shader, &riggedShader;
         uint mask;
+        std::function<bool(entt::entity)> filter;
         bool
             lights = true,
             uploadLightData = true,

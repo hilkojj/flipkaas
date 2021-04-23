@@ -89,6 +89,7 @@ void RoomScreen::render(double deltaTime)
             shadowMapCon.mask = sr.visibilityMask;
             shadowMapCon.lights = false;
             shadowMapCon.materials = false;
+            shadowMapCon.filter = [&] (auto e) { return room->entities.has<ShadowCaster>(e); };
             glCullFace(GL_FRONT);
             renderRoom(shadowMapCon);
             glCullFace(GL_BACK);
@@ -318,6 +319,7 @@ void RoomScreen::renderRoom(const RenderContext &con)
 
     initializeShader(con, con.shader);
     room->entities.view<Transform, RenderModel>(entt::exclude<Rigged>).each([&](auto e, Transform &t, RenderModel &rm) {
+        if (con.filter && !con.filter(e)) return;
         renderModel(con, con.shader, e, t, rm);
     });
 
@@ -327,6 +329,7 @@ void RoomScreen::renderRoom(const RenderContext &con)
 
         bool first = true;
         room->entities.view<Transform, RenderModel, Rigged>().each([&](auto e, Transform &t, RenderModel &rm, Rigged &rig) {
+            if (con.filter && !con.filter(e)) return;
             if (first)
             {
                 initializeShader(con, con.riggedShader);
@@ -385,6 +388,9 @@ void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, en
             glUniform1i(shader.location("useNormalMap"), useNormalMap);
             if (useNormalMap)
                 modelPart.material->normalMap->bind(2, shader, "normalMap");
+
+            if (con.shadows)
+                glUniform1i(shader.location("useShadows"), room->entities.has<ShadowReceiver>(e));
         }
 
         if (rig && !modelPart.bones.empty())

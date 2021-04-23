@@ -19,7 +19,8 @@ function create(player)
                     influence = 1,
                 }
             }
-        }
+        },
+        ShadowCaster()
     })
 
     onEntityEvent(player, "AnimationFinished", function(anim, unsub)
