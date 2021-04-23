@@ -36,11 +36,16 @@ class RoomScreen : public Screen
 
     EntityInspector3D inspector;
 
-    ShaderAsset defaultShader, riggedShader, depthShader, riggedDepthShader;
+    ShaderAsset
+        defaultShader, riggedShader, depthShader, riggedDepthShader,
+
+        hdrShader;
 
     int prevNrOfPointLights = -1, prevNrOfDirLights = -1, prevNrOfDirShadowLights = -1;
 
     FrameBuffer *fbo = NULL;
+
+    float hdrExposure = 1.0;
 
   public:
 
@@ -63,6 +68,14 @@ class RoomScreen : public Screen
     void initializeShader(const RenderContext &, ShaderProgram &);
 
     void renderModel(const RenderContext &, ShaderProgram &, entt::entity, const Transform &, const RenderModel &, const Rigged *rig=NULL);
+
+
+    // debug:
+    void debugText(const std::string &, const vec3 &);
+
+    void debugLights();
+
+    void debugArmatures();
 };
 
 

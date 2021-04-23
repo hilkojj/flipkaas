@@ -28,6 +28,11 @@ RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
         riggedDepthShader(
                 "rigged depth shader",
                 "shaders/rigged_depth.vert", "shaders/depth.frag"
+        ),
+
+        hdrShader(
+                "hdr shader",
+                "shaders/fullscreen_quad.vert", "shaders/tone_mapping.frag"
         )
 {
     assert(room != NULL);
@@ -112,7 +117,15 @@ void RoomScreen::render(double deltaTime)
     renderRoom(finalImg);
     fbo->unbind();
 
-    fbo->blitTo();   // the debug lines will be depth-tested with the depth of the rendered scene
+    glDisable(GL_DEPTH_TEST);
+
+    hdrShader.use();
+    fbo->colorTexture->bind(0, hdrShader, "hdrImage");
+    glUniform1f(hdrShader.location("exposure"), hdrExposure);
+    Mesh::getQuad()->render();
+
+    glEnable(GL_DEPTH_TEST);
+
     renderDebugStuff();
 }
 
@@ -120,9 +133,11 @@ void RoomScreen::onResize()
 {
     delete fbo;
     fbo = new FrameBuffer(gu::widthPixels, gu::heightPixels, Game::settings.graphics.msaaSamples);
-    fbo->addColorTexture(GL_RGB, GL_NEAREST, GL_NEAREST);
-    fbo->addDepthBuffer();
+    fbo->addColorTexture(GL_RGB16F, GL_RGB, GL_NEAREST, GL_NEAREST, GL_FLOAT);
+    fbo->addDepthBuffer(GL_DEPTH24_STENCIL8);   // GL_DEPTH24_STENCIL8 is the same format as the default depth buffer. This is necessary for blitting to the default buffer.
 }
+
+int debugTextI = 0;
 
 void RoomScreen::renderDebugStuff()
 {
@@ -134,6 +149,10 @@ void RoomScreen::renderDebugStuff()
     auto &cam = *room->camera;
     lineRenderer.projection = cam.combined;
 
+    debugTextI = 0;
+
+    fbo->blitTo(GL_DEPTH_BUFFER_BIT);   // the debug lines will be depth-tested with the depth of the rendered scene
+
     {
         // x-axis:
         lineRenderer.line(vec3(cam.position.x - 1000, 0, 0), vec3(cam.position.x + 1000, 0, 0), mu::X);
@@ -142,136 +161,9 @@ void RoomScreen::renderDebugStuff()
         // z-axis:
         lineRenderer.line(vec3(0, 0, cam.position.z - 1000), vec3(0, 0, cam.position.z + 1000), mu::Z);
     }
-    {
-        // directional lights:
-        room->entities.view<Transform, DirectionalLight>().each([&](auto e, Transform &t, DirectionalLight &dl) {
-
-            auto transform = Room3D::transformFromComponent(t);
-            vec3 direction = transform * vec4(-mu::Y, 0);
-
-            lineRenderer.axes(t.position, .1, vec3(1, 1, 0));
-            for (int i = 0; i < 100; i++)
-                lineRenderer.line(t.position + direction * float(i * .2), t.position + direction * float(i * .2 + .1), vec3(1, 1, 0));
-
-            if (Game::settings.graphics.debugShadowBoxes) if (ShadowRenderer *sr = room->entities.try_get<ShadowRenderer>(e))
-            {
-                auto orthoCam = camForDirLight(t, *sr);
-
-                // topleft
-                auto A = t.position + orthoCam.up * sr->frustrumSize.y * .5f - orthoCam.right * sr->frustrumSize.x * .5f;
-                // topright
-                auto B = t.position + orthoCam.up * sr->frustrumSize.y * .5f + orthoCam.right * sr->frustrumSize.x * .5f;
-                // bottomright
-                auto C = t.position - orthoCam.up * sr->frustrumSize.y * .5f + orthoCam.right * sr->frustrumSize.x * .5f;
-                // bottomleft
-                auto D = t.position - orthoCam.up * sr->frustrumSize.y * .5f - orthoCam.right * sr->frustrumSize.x * .5f;
-
-                auto depthDir = orthoCam.direction * orthoCam.far_;
-
-                auto color = vec3(1, 1, 0);
-
-                lineRenderer.line(A, B, color);
-                lineRenderer.line(B, C, color);
-                lineRenderer.line(C, D, color);
-                lineRenderer.line(D, A, color);
-
-                lineRenderer.line(A, A + depthDir, color);
-                lineRenderer.line(B, B + depthDir, color);
-                lineRenderer.line(C, C + depthDir, color);
-                lineRenderer.line(D, D + depthDir, color);
-
-                lineRenderer.line(A + depthDir, B + depthDir, color);
-                lineRenderer.line(B + depthDir, C + depthDir, color);
-                lineRenderer.line(C + depthDir, D + depthDir, color);
-                lineRenderer.line(D + depthDir, A + depthDir, color);
-            }
-        });
-
-        // point lights:
-        room->entities.view<Transform, PointLight>().each([&](Transform &t, PointLight &pl) {
-            lineRenderer.axes(t.position, .1, vec3(1, 1, 0));
-        });
-    }
+    debugLights();
     if (Game::settings.graphics.debugArmatures)
-    {
-        glDisable(GL_DEPTH_TEST);
-        glLineWidth(2.f);
-        room->entities.view<Transform, RenderModel, Rigged>().each([&](auto e, Transform &t, RenderModel &rm, Rigged &rig) {
-            auto &model = room->models[rm.modelName];
-            if (!model) return;
-
-            auto transform = Room3D::transformFromComponent(t);
-
-            for (auto &modelPart : model->parts)
-            {
-                if (!modelPart.armature) continue;
-
-                auto &arm = *modelPart.armature.get();
-
-                int depth = 0;
-                std::function<void(SharedBone &, mat4 &, mat4 &)> renderBone;
-                renderBone = [&] (SharedBone &bone, mat4 &parent, mat4 &parentBonePoseTransform) {
-                    depth++;
-
-                    mat4 mat = parent * bone->getBoneSpaceTransform();
-
-                    vec3 p0 = parent * vec4(mu::ZERO_3, 1);
-                    p0 = parentBonePoseTransform * vec4(p0, 1);
-                    vec3 p1 = mat * vec4(mu::ZERO_3, 1);
-                    vec3 p2 = mat * vec4(0, 0, -.3, 1); // slight offset just for debugging
-
-                    mat4 bonePoseTransform(1);
-                    // transform the "vertices" by the bonePoseTransforms, just like the vertex shader should do.
-                    if (rig.bonePoseTransform.find(bone) != rig.bonePoseTransform.end())
-                    {
-                        bonePoseTransform = rig.bonePoseTransform[bone];  // NOT MODEL SPACE. Vertices should be multiplied by this.
-                        p1 = bonePoseTransform * vec4(p1, 1);
-                        p2 = bonePoseTransform * vec4(p2, 1);
-                    }
-                    p0 = transform * vec4(p0, 1);
-                    p1 = transform * vec4(p1, 1);
-                    p2 = transform * vec4(p2, 1);
-                    vec3 color = std::vector<vec3>{
-                        vec3(52, 235, 164),
-                        vec3(233, 166, 245),
-                        vec3(242, 214, 131)
-                    }[depth % 3] / 255.f;
-
-                    if (depth > 1) lineRenderer.line(p0, p1, color);
-                    lineRenderer.axes(p1, .05, vec3(1));
-
-                    bool inScreen = false;
-                    vec2 screenPos = cam.projectPixels(p2, inScreen);
-                    if (inScreen)
-                    {
-                        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-                        ImGui::SetNextWindowBgAlpha(0);
-                        ImGui::SetNextWindowPos(ImVec2(screenPos.x - 5, screenPos.y - 5));
-                        ImGui::SetNextWindowSize(ImVec2(200, 30));
-                        ImGui::Begin((bone->name + "__namepopup__" + std::to_string(int(e))).c_str(), NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoInputs);
-                        ImGui::SetWindowFontScale(.9);
-                        ImGui::Text("%s", splitString(bone->name, "__").back().c_str());
-                        ImGui::End();
-                        ImGui::PopStyleVar();
-                    }
-
-                    for (auto &child : bone->children)
-                        renderBone(child, mat, bonePoseTransform);
-
-                    if (bone->children.empty())
-                        lineRenderer.line(p1, p2, mu::X);
-                    depth--;
-                };
-                mat4 id(1);
-                if (arm.root)
-                    renderBone(arm.root, id, id);
-
-                break;
-            }
-        });
-        glEnable(GL_DEPTH_TEST);
-        glLineWidth(1.f);
-    }
+        debugArmatures();
 
     inspector.drawGUI(&cam, lineRenderer);
 
@@ -282,6 +174,8 @@ void RoomScreen::renderDebugStuff()
         ImGui::Separator();
         ImGui::Checkbox("Show shadow boxes", &Game::settings.graphics.debugShadowBoxes);
         ImGui::Checkbox("Show armatures", &Game::settings.graphics.debugArmatures);
+
+        ImGui::DragFloat("HDR exposure", &hdrExposure, .1, 0, 10);
 
         if (ImGui::MenuItem("View as JSON"))
         {
@@ -489,4 +383,150 @@ void RoomScreen::initializeShader(const RenderContext &con, ShaderProgram &shade
     else shader.use();
 
     glUniform3fv(shader.location("camPosition"), 1, &con.cam.position[0]);
+}
+
+void RoomScreen::debugLights()
+{
+    gu::profiler::Zone z("lights");
+    // directional lights:
+    room->entities.view<Transform, DirectionalLight>().each([&](auto e, Transform &t, DirectionalLight &dl) {
+
+        auto transform = Room3D::transformFromComponent(t);
+        vec3 direction = transform * vec4(-mu::Y, 0);
+
+        lineRenderer.axes(t.position, .1, vec3(1, 1, 0));
+        for (int i = 0; i < 100; i++)
+            lineRenderer.line(t.position + direction * float(i * .2), t.position + direction * float(i * .2 + .1), vec3(1, 1, 0));
+
+        if (Game::settings.graphics.debugShadowBoxes) if (ShadowRenderer *sr = room->entities.try_get<ShadowRenderer>(e))
+        {
+            auto orthoCam = camForDirLight(t, *sr);
+
+            // topleft
+            auto A = t.position + orthoCam.up * sr->frustrumSize.y * .5f - orthoCam.right * sr->frustrumSize.x * .5f;
+            // topright
+            auto B = t.position + orthoCam.up * sr->frustrumSize.y * .5f + orthoCam.right * sr->frustrumSize.x * .5f;
+            // bottomright
+            auto C = t.position - orthoCam.up * sr->frustrumSize.y * .5f + orthoCam.right * sr->frustrumSize.x * .5f;
+            // bottomleft
+            auto D = t.position - orthoCam.up * sr->frustrumSize.y * .5f - orthoCam.right * sr->frustrumSize.x * .5f;
+
+            auto depthDir = orthoCam.direction * orthoCam.far_;
+
+            auto color = vec3(1, 1, 0);
+
+            lineRenderer.line(A, B, color);
+            lineRenderer.line(B, C, color);
+            lineRenderer.line(C, D, color);
+            lineRenderer.line(D, A, color);
+
+            lineRenderer.line(A, A + depthDir, color);
+            lineRenderer.line(B, B + depthDir, color);
+            lineRenderer.line(C, C + depthDir, color);
+            lineRenderer.line(D, D + depthDir, color);
+
+            lineRenderer.line(A + depthDir, B + depthDir, color);
+            lineRenderer.line(B + depthDir, C + depthDir, color);
+            lineRenderer.line(C + depthDir, D + depthDir, color);
+            lineRenderer.line(D + depthDir, A + depthDir, color);
+        }
+
+        if (auto name = room->getName(e))
+            debugText(name, t.position);
+    });
+
+    // point lights:
+    room->entities.view<Transform, PointLight>().each([&](auto e, Transform &t, PointLight &pl) {
+        lineRenderer.axes(t.position, .1, vec3(1, 1, 0));
+        if (auto name = room->getName(e))
+            debugText(name, t.position);
+    });
+}
+
+void RoomScreen::debugArmatures()
+{
+    gu::profiler::Zone z("armatures");
+    glDisable(GL_DEPTH_TEST);
+    glLineWidth(2.f);
+    room->entities.view<Transform, RenderModel, Rigged>().each([&](auto e, Transform &t, RenderModel &rm, Rigged &rig) {
+        auto &model = room->models[rm.modelName];
+        if (!model) return;
+
+        auto transform = Room3D::transformFromComponent(t);
+
+        for (auto &modelPart : model->parts)
+        {
+            if (!modelPart.armature) continue;
+
+            auto &arm = *modelPart.armature.get();
+
+            int depth = 0;
+            std::function<void(SharedBone &, mat4 &, mat4 &)> renderBone;
+            renderBone = [&] (SharedBone &bone, mat4 &parent, mat4 &parentBonePoseTransform) {
+                depth++;
+
+                mat4 mat = parent * bone->getBoneSpaceTransform();
+
+                vec3 p0 = parent * vec4(mu::ZERO_3, 1);
+                p0 = parentBonePoseTransform * vec4(p0, 1);
+                vec3 p1 = mat * vec4(mu::ZERO_3, 1);
+                vec3 p2 = mat * vec4(0, 0, -.3, 1); // slight offset just for debugging
+
+                mat4 bonePoseTransform(1);
+                // transform the "vertices" by the bonePoseTransforms, just like the vertex shader should do.
+                if (rig.bonePoseTransform.find(bone) != rig.bonePoseTransform.end())
+                {
+                    bonePoseTransform = rig.bonePoseTransform[bone];  // NOT MODEL SPACE. Vertices should be multiplied by this.
+                    p1 = bonePoseTransform * vec4(p1, 1);
+                    p2 = bonePoseTransform * vec4(p2, 1);
+                }
+                p0 = transform * vec4(p0, 1);
+                p1 = transform * vec4(p1, 1);
+                p2 = transform * vec4(p2, 1);
+                vec3 color = std::vector<vec3>{
+                        vec3(52, 235, 164),
+                        vec3(233, 166, 245),
+                        vec3(242, 214, 131)
+                }[depth % 3] / 255.f;
+
+                if (depth > 1) lineRenderer.line(p0, p1, color);
+                lineRenderer.axes(p1, .05, vec3(1));
+
+                debugText(splitString(bone->name, "__").back(), p2);
+
+                for (auto &child : bone->children)
+                    renderBone(child, mat, bonePoseTransform);
+
+                if (bone->children.empty())
+                    lineRenderer.line(p1, p2, mu::X);
+                depth--;
+            };
+            mat4 id(1);
+            if (arm.root)
+                renderBone(arm.root, id, id);
+
+            break;
+        }
+    });
+    glEnable(GL_DEPTH_TEST);
+    glLineWidth(1.f);
+}
+
+void RoomScreen::debugText(const std::string &text, const vec3 &pos)
+{
+    bool inScreen = false;
+    assert(room->camera != NULL);
+    vec2 screenPos = room->camera->projectPixels(pos, inScreen);
+    if (inScreen)
+    {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+        ImGui::SetNextWindowBgAlpha(0);
+        ImGui::SetNextWindowPos(ImVec2(screenPos.x - 5, screenPos.y - 5));
+        ImGui::SetNextWindowSize(ImVec2(200, 30));
+        ImGui::Begin(("__debugtextpopup__" + std::to_string(debugTextI++)).c_str(), NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoInputs);
+        ImGui::SetWindowFontScale(.9);
+        ImGui::Text("%s", text.c_str());
+        ImGui::End();
+        ImGui::PopStyleVar();
+    }
 }
