@@ -16,11 +16,24 @@ function create(player)
             playingAnimations = {
                 PlayAnimation {
                     name = "testanim",
-
+                    influence = 1,
                 }
             }
         }
     })
+
+    onEntityEvent(player, "AnimationFinished", function(anim, unsub)
+        print(anim.name.." has finished playing! Play it one more time but with less influence..")
+        local anim = component.Rigged.getFor(player).playingAnimations[1]
+        anim.loop = false
+        anim.influence = .5
+        unsub()
+
+        component.Rigged.getFor(player).playingAnimations:add(PlayAnimation {
+            name = "headanim",
+            influence = 1.
+        })
+    end)
 
 end
 
