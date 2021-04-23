@@ -36,9 +36,9 @@ in vec3 v_position;
 in vec2 v_textureCoord;
 in mat3 v_TBN;
 
-layout (location = 0) out vec3 colorOut;
+layout (location = 0) out vec4 colorOut;
 #if BLOOM
-layout (location = 1) out vec3 brightColor;
+layout (location = 1) out vec4 brightColor;
 #endif
 
 uniform vec3 diffuse;
@@ -160,7 +160,7 @@ void main()
         diffuseColor = pow(diffuseColor, vec3(GAMMA)); // sRGB to linear space. https://learnopengl.com/Advanced-Lighting/Gamma-Correction
     }
 
-    colorOut = diffuseColor;
+    colorOut.rgb = diffuseColor;
 
     vec3 totalDiffuseLight = vec3(0);
     vec3 totalSpecularLight = vec3(0);
@@ -203,24 +203,29 @@ void main()
     #endif
 
     // diffuse & ambient:
-    colorOut *= vec3(max(totalAmbientLight.r, totalDiffuseLight.r), max(totalAmbientLight.g, totalDiffuseLight.g), max(totalAmbientLight.b, totalDiffuseLight.b));
+    colorOut.rgb *= vec3(max(totalAmbientLight.r, totalDiffuseLight.r), max(totalAmbientLight.g, totalDiffuseLight.g), max(totalAmbientLight.b, totalDiffuseLight.b));
 
     // specularity:
     vec3 specularColor = specular.rgb;
     if (useSpecularMap == 1)
         specularColor = texture(specularMap, v_textureCoord).rgb;
 
-    colorOut += specularColor * totalSpecularLight;
+    colorOut.rgb += specularColor * totalSpecularLight;
 
     // gamma correction:
-    colorOut = pow(colorOut, vec3(1.0 / GAMMA));
+    colorOut.rgb = pow(colorOut.rgb, vec3(1.0 / GAMMA));
+
+    // fog:
+    colorOut.a = 1. - max(0., min(1., length(v_position - camPosition) * .03));
 
     #if BLOOM
     // check whether fragment output is higher than threshold, if so output as brightness color
-    float brightness = dot(colorOut, vec3(0.2126, 0.7152, 0.0722));
+    float brightness = dot(colorOut.rgb, vec3(0.2126, 0.7152, 0.0722));
     if (brightness > BLOOM_THRESHOLD)
-        brightColor = colorOut;
+        brightColor.rgb = colorOut.rgb;
     else
-        brightColor = vec3(0);
+        brightColor.rgb = vec3(0);
+
+    brightColor.a = colorOut.a;
     #endif
 }

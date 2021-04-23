@@ -28,6 +28,7 @@ class RoomScreen : public Screen
             shadows = true,
             materials = true,
             riggedModels = true;
+        ShaderProgram *skyShader = NULL;
     };
 
     bool showRoomEditor = false;
@@ -39,7 +40,7 @@ class RoomScreen : public Screen
     ShaderAsset
         defaultShader, riggedShader, depthShader, riggedDepthShader,
 
-        blurShader, hdrShader;
+        blurShader, hdrShader, skyShader;
 
     int prevNrOfPointLights = -1, prevNrOfDirLights = -1, prevNrOfDirShadowLights = -1;
 

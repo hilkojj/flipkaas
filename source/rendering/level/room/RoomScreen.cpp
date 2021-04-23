@@ -26,17 +26,21 @@ RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
             "shaders/depth.vert", "shaders/depth.frag"
         ),
         riggedDepthShader(
-                "rigged depth shader",
-                "shaders/rigged_depth.vert", "shaders/depth.frag"
+            "rigged depth shader",
+            "shaders/rigged_depth.vert", "shaders/depth.frag"
         ),
 
         blurShader(
-                "blur shader",
-                "shaders/fullscreen_quad.vert", "shaders/gaussian_blur.frag"
+            "blur shader",
+            "shaders/fullscreen_quad.vert", "shaders/gaussian_blur.frag"
         ),
         hdrShader(
-                "hdr shader",
-                "shaders/fullscreen_quad.vert", "shaders/tone_mapping.frag"
+            "hdr shader",
+            "shaders/fullscreen_quad.vert", "shaders/tone_mapping.frag"
+        ),
+        skyShader(
+            "sky shader",
+            "shaders/fullscreen_quad.vert", "shaders/sky.frag"
         )
 {
     assert(room != NULL);
@@ -109,6 +113,7 @@ void RoomScreen::render(double deltaTime)
     RenderContext finalImg { *room->camera, defaultShader, riggedShader };
     finalImg.mask = ~0u;
     finalImg.shadows = Game::settings.graphics.shadows;
+    finalImg.skyShader = &skyShader;
     if (room->entities.valid(room->cameraEntity))
         if (auto *cp = room->entities.try_get<CameraPerspective>(room->cameraEntity))
             finalImg.mask = cp->visibilityMask;
@@ -116,7 +121,7 @@ void RoomScreen::render(double deltaTime)
     assert(fbo != NULL);
 
     fbo->bind();
-    glClearColor(0, 0, 0, 1);
+    glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     renderRoom(finalImg);
     fbo->unbind();
@@ -278,6 +283,21 @@ void RoomScreen::renderRoom(const RenderContext &con)
             }
             renderModel(con, con.riggedShader, e, t, rm, &rig);
         });
+    }
+
+    if (con.skyShader)
+    {
+        con.skyShader->use();
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask(GL_FALSE);
+
+        Mesh::getQuad()->render();
+
+        glEnable(GL_DEPTH_TEST);
+        glDisable(GL_BLEND);
+        glDepthMask(GL_TRUE);
     }
 }
 
