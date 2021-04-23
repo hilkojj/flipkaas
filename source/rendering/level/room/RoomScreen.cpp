@@ -30,6 +30,10 @@ RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
                 "shaders/rigged_depth.vert", "shaders/depth.frag"
         ),
 
+        blurShader(
+                "blur shader",
+                "shaders/fullscreen_quad.vert", "shaders/gaussian_blur.frag"
+        ),
         hdrShader(
                 "hdr shader",
                 "shaders/fullscreen_quad.vert", "shaders/tone_mapping.frag"
@@ -119,8 +123,31 @@ void RoomScreen::render(double deltaTime)
 
     glDisable(GL_DEPTH_TEST);
 
+    FrameBuffer *bloomBlurFbo = NULL;
+
+    {
+        bool horizontal = true, firstIteration = true;
+        int amount = 10;
+        blurShader.use();
+        for (unsigned int i = 0; i < amount; i++)
+        {
+            bloomBlurFbo = blurPingPongFbos[horizontal];
+            bloomBlurFbo->bind();
+            glUniform1i(blurShader.location("horizontal"), horizontal);
+
+            (firstIteration ? fbo->colorTextures.at(1) : blurPingPongFbos[!horizontal]->colorTexture)->bind(0, blurShader, "image");
+            Mesh::getQuad()->render();
+            bloomBlurFbo->unbind();
+            horizontal = !horizontal;
+            firstIteration = false;
+        }
+
+    }
+
     hdrShader.use();
     fbo->colorTexture->bind(0, hdrShader, "hdrImage");
+    if (bloomBlurFbo)
+        bloomBlurFbo->colorTexture->bind(1, hdrShader, "blurImage");
     glUniform1f(hdrShader.location("exposure"), hdrExposure);
     Mesh::getQuad()->render();
 
@@ -131,10 +158,22 @@ void RoomScreen::render(double deltaTime)
 
 void RoomScreen::onResize()
 {
+    // using GL_RGBA16F, because without the alpha channel webgl will give errors.
+
     delete fbo;
     fbo = new FrameBuffer(gu::widthPixels, gu::heightPixels, Game::settings.graphics.msaaSamples);
-    fbo->addColorTexture(GL_RGB16F, GL_RGB, GL_NEAREST, GL_NEAREST, GL_FLOAT);
+    fbo->addColorTexture(GL_RGBA16F, GL_RGBA, GL_NEAREST, GL_NEAREST, GL_FLOAT);  // normal HDR color
+    fbo->addColorTexture(GL_RGBA16F, GL_RGBA, GL_NEAREST, GL_NEAREST, GL_FLOAT);  // bright HDR color, to be blurred.
     fbo->addDepthBuffer(GL_DEPTH24_STENCIL8);   // GL_DEPTH24_STENCIL8 is the same format as the default depth buffer. This is necessary for blitting to the default buffer.
+
+    for (int i = 0; i < 2; i++)
+    {
+        delete blurPingPongFbos[i];
+        blurPingPongFbos[i] = new FrameBuffer(gu::widthPixels, gu::heightPixels);//, Game::settings.graphics.msaaSamples);
+        blurPingPongFbos[i]->addColorTexture(GL_RGBA16F, GL_RGBA, GL_NEAREST, GL_NEAREST, GL_FLOAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
 }
 
 int debugTextI = 0;
@@ -205,6 +244,8 @@ RoomScreen::~RoomScreen()
         sr.fbo = NULL;
     });
     delete fbo;
+    delete blurPingPongFbos[0];
+    delete blurPingPongFbos[1];
 }
 
 void RoomScreen::renderRoom(const RenderContext &con)

@@ -39,11 +39,12 @@ class RoomScreen : public Screen
     ShaderAsset
         defaultShader, riggedShader, depthShader, riggedDepthShader,
 
-        hdrShader;
+        blurShader, hdrShader;
 
     int prevNrOfPointLights = -1, prevNrOfDirLights = -1, prevNrOfDirShadowLights = -1;
 
     FrameBuffer *fbo = NULL;
+    FrameBuffer *blurPingPongFbos[2] = {NULL, NULL};
 
     float hdrExposure = 1.0;
 
