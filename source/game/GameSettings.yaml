@@ -8,6 +8,7 @@ GraphicsSettings:
 
   imGuiFont: [string, "assets/fonts/ruda/Ruda-Bold.ttf"]
   gammaCorrection: [float, 2.2]
+  msaaSamples: [uint8, 4]
   shadows: [bool, true]
   maxArmatureBones: [uint, 64]
 

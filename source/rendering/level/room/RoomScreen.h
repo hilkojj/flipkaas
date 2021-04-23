@@ -7,6 +7,7 @@
 #include <graphics/3d/debug_line_renderer.h>
 #include <graphics/camera.h>
 #include <graphics/shader_asset.h>
+#include <graphics/frame_buffer.h>
 #include "EntityInspector3D.h"
 #include "../../../level/room/Room3D.h"
 
@@ -37,6 +38,8 @@ class RoomScreen : public Screen
     ShaderAsset defaultShader, riggedShader, depthShader, riggedDepthShader;
 
     int prevNrOfPointLights = -1, prevNrOfDirLights = -1, prevNrOfDirShadowLights = -1;
+
+    FrameBuffer *fbo = NULL;
 
   public:
 

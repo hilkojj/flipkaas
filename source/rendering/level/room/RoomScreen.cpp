@@ -3,7 +3,6 @@
 #include <level/Level.h>
 #include <game/dibidab.h>
 #include <graphics/orthographic_camera.h>
-#include <graphics/frame_buffer.h>
 #include "RoomScreen.h"
 #include "../../../generated/Camera.hpp"
 #include "../../../generated/Model.hpp"
@@ -104,14 +103,24 @@ void RoomScreen::render(double deltaTime)
         if (auto *cp = room->entities.try_get<CameraPerspective>(room->cameraEntity))
             finalImg.mask = cp->visibilityMask;
 
-    renderRoom(finalImg);
+    assert(fbo != NULL);
 
+    fbo->bind();
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    renderRoom(finalImg);
+    fbo->unbind();
+
+    fbo->blitTo();   // the debug lines will be depth-tested with the depth of the rendered scene
     renderDebugStuff();
 }
 
 void RoomScreen::onResize()
 {
-
+    delete fbo;
+    fbo = new FrameBuffer(gu::widthPixels, gu::heightPixels, Game::settings.graphics.msaaSamples);
+    fbo->addColorTexture(GL_RGB, GL_NEAREST, GL_NEAREST);
+    fbo->addDepthBuffer();
 }
 
 void RoomScreen::renderDebugStuff()
@@ -230,13 +239,15 @@ void RoomScreen::renderDebugStuff()
                     if (depth > 1) lineRenderer.line(p0, p1, color);
                     lineRenderer.axes(p1, .05, vec3(1));
 
-                    vec2 screenPos = cam.projectPixels(p2);
+                    bool inScreen = false;
+                    vec2 screenPos = cam.projectPixels(p2, inScreen);
+                    if (inScreen)
                     {
                         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
                         ImGui::SetNextWindowBgAlpha(0);
                         ImGui::SetNextWindowPos(ImVec2(screenPos.x - 5, screenPos.y - 5));
                         ImGui::SetNextWindowSize(ImVec2(200, 30));
-                        ImGui::Begin((bone->name + "__namepopup__").c_str(), NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoInputs);
+                        ImGui::Begin((bone->name + "__namepopup__" + std::to_string(int(e))).c_str(), NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoInputs);
                         ImGui::SetWindowFontScale(.9);
                         ImGui::Text("%s", splitString(bone->name, "__").back().c_str());
                         ImGui::End();
@@ -298,6 +309,7 @@ RoomScreen::~RoomScreen()
     room->entities.view<ShadowRenderer>().each([&](ShadowRenderer &sr) {
         sr.fbo = NULL;
     });
+    delete fbo;
 }
 
 void RoomScreen::renderRoom(const RenderContext &con)
