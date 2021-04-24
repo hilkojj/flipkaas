@@ -54,4 +54,7 @@ void Game::saveSettings()
     File::writeBinary(SETTINGS_FILE_PATH, j.dump(4));
 }
 
+MegaSpriteSheet Game::spriteSheet;
+cofu<Palettes3D> Game::palettes;
+
 cofu<UIScreenManager> Game::uiScreenManager;

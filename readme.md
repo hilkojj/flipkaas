@@ -1,9 +1,8 @@
 
-
 #### [Download for Linux](https://hilkojj.nl/flipkaas/game-linux.zip)
 #### [Download for Windows](https://hilkojj.nl/flipkaas/game-windows.zip)
-#### [Play game in browser*](https://hilkojj.nl/flipkaas/game.html)
-<sup>*less peformance, prefer the linux or windows download instead.</sup>
+#### [Play game in browser (CHROME RECOMMENDED *)](https://hilkojj.nl/flipkaas/game.html)
+<sup>*less peformance, especially in Firefox, prefer the linux or windows download instead.</sup>
 
 [![Build & deploy to gh-pages](https://github.com/hilkojj/flipkaas/actions/workflows/build_and_deploy.yml/badge.svg)](https://github.com/hilkojj/flipkaas/actions/workflows/build_and_deploy.yml)
 

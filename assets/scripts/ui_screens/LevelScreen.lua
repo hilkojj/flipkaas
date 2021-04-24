@@ -20,3 +20,11 @@ onEntityEvent(levelRestarter, "retry_key_pressed", function()
 end)
 
 loadOrCreateLevel(_G.levelToLoad)
+
+setComponents(createEntity(), {
+    UIElement(),
+    TextView {
+        text = "Deeptris v0.1",
+        fontSprite = "sprites/ui/default_font"
+    }
+})

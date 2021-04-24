@@ -21,6 +21,8 @@ GraphicsSettings @not_a_component @json_with_keys:
   prefilteredReflectionMapResolution: [uint, 256]
   prefilteredReflectionMapSamples: [uint, 2048]
   convolutionStepDelta: [float, 0.02]
+  
+  uiPixelScaling: [uint, 3]
 
   debugShadowBoxes: [bool, true]
   debugArmatures: [bool, true]
