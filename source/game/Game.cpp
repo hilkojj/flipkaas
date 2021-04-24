@@ -13,6 +13,9 @@ void setShaderDefinitions()
     ShaderDefinitions::defineInt("MAX_BONES", Game::settings.graphics.maxArmatureBones);
     ShaderDefinitions::defineInt("BLOOM", Game::settings.graphics.bloomBlurIterations);
     ShaderDefinitions::defineFloat("BLOOM_THRESHOLD", Game::settings.graphics.bloomThreshold);
+    ShaderDefinitions::defineFloat("FOG_START", Game::settings.graphics.fogStart);
+    ShaderDefinitions::defineFloat("FOG_END", Game::settings.graphics.fogEnd);
+    ShaderDefinitions::defineInt("FOG", Game::settings.graphics.fogEnabled);
 }
 
 void Game::loadSettings()

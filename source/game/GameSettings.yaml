@@ -14,6 +14,9 @@ GraphicsSettings:
   bloomThreshold: [float, 1.7]
   shadows: [bool, true]
   maxArmatureBones: [uint, 64]
+  fogStart: [float, 10]
+  fogEnd: [float, 30]
+  fogEnabled: [bool, true]
 
   debugShadowBoxes: [bool, true]
   debugArmatures: [bool, true]

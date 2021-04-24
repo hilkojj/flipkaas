@@ -36,6 +36,10 @@ in vec3 v_position;
 in vec2 v_textureCoord;
 in mat3 v_TBN;
 
+#if FOG
+in float v_fog;
+#endif
+
 layout (location = 0) out vec4 colorOut;
 #if BLOOM
 layout (location = 1) out vec4 brightColor;
@@ -215,8 +219,12 @@ void main()
     // gamma correction:
     colorOut.rgb = pow(colorOut.rgb, vec3(1.0 / GAMMA));
 
+    #if FOG
     // fog:
-    colorOut.a = 1. - max(0., min(1., length(v_position - camPosition) * .03));
+    colorOut.a = v_fog;
+    #else
+    colorOut.a = 1.;
+    #endif
 
     #if BLOOM
     // check whether fragment output is higher than threshold, if so output as brightness color

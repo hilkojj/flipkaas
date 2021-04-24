@@ -11,11 +11,16 @@ layout(location = 7) in vec2 a_boneIdAndWeight3;
 uniform mat4 mvp;
 uniform mat4 transform;
 
+uniform vec3 camPosition;
+
 uniform mat4 bonePoseTransforms[MAX_BONES];
 
 out vec3 v_position;
 out vec2 v_textureCoord;
 out mat3 v_TBN;
+#if FOG
+out float v_fog;
+#endif
 
 void applyBone(vec2 boneIdAndWeight, inout vec4 totalLocalPos, inout vec4 totalNormal, inout vec4 totalTangent, inout float w)
 {
@@ -62,4 +67,8 @@ void main()
     vec3 bitan = normalize(cross(normal, tangent)); // todo, is normalize needed?
 
     v_TBN = mat3(tangent, bitan, normal);
+
+    #if FOG
+    v_fog = 1. - max(0., min(1., (length(v_position - camPosition) - FOG_START) / (FOG_END - FOG_START)));
+    #endif
 }
