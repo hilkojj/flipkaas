@@ -49,6 +49,8 @@ class RoomScreen : public Screen
 
     float hdrExposure = 1.0;
 
+    Texture dummyTexture;
+
   public:
 
     Room3D *room;

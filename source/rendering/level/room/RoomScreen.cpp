@@ -9,6 +9,8 @@
 #include "../../../generated/Light.hpp"
 #include "../../../game/Game.h"
 
+const GLubyte dummyTexData[] = {0, 0, 0};
+
 RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
         :
         room(room), showRoomEditor(showRoomEditor), inspector(*room, "Room"),
@@ -41,7 +43,9 @@ RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
         skyShader(
             "sky shader",
             "shaders/fullscreen_quad.vert", "shaders/sky.frag"
-        )
+        ),
+
+        dummyTexture(Texture::fromByteData(&dummyTexData[0], GL_RGB, 1, 1, GL_NEAREST, GL_NEAREST))
 {
     assert(room != NULL);
     inspector.createEntity_showSubFolder = "level_room";
@@ -301,6 +305,15 @@ void RoomScreen::renderRoom(const RenderContext &con)
     }
 }
 
+const int
+    DIFFUSE_TEX_UNIT = 0,
+    SPECULAR_TEX_UNIT = 1,
+    NORMAL_TEX_UNIT = 2;
+const char
+    *DIFFUSE_UNI_NAME = "diffuseTexture",
+    *SPECULAR_UNI_NAME = "specularMap",
+    *NORMAL_UNI_NAME = "normalMap";
+
 void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, entt::entity e, const Transform &t, const RenderModel &rm, const Rigged *rig)
 {
     if (!(rm.visibilityMask & con.mask))
@@ -338,17 +351,23 @@ void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, en
             bool useDiffuseTexture = modelPart.material->diffuseTexture.isSet();
             glUniform1i(shader.location("useDiffuseTexture"), useDiffuseTexture);
             if (useDiffuseTexture)
-                modelPart.material->diffuseTexture->bind(0, shader, "diffuseTexture");
+                modelPart.material->diffuseTexture->bind(DIFFUSE_TEX_UNIT, shader, DIFFUSE_UNI_NAME);
+            else
+                dummyTexture.bind(DIFFUSE_TEX_UNIT, shader, DIFFUSE_UNI_NAME);
 
             bool useSpecularMap = modelPart.material->specularMap.isSet();
             glUniform1i(shader.location("useSpecularMap"), useSpecularMap);
             if (useSpecularMap)
-                modelPart.material->specularMap->bind(1, shader, "specularMap");
+                modelPart.material->specularMap->bind(SPECULAR_TEX_UNIT, shader, SPECULAR_UNI_NAME);
+            else
+                dummyTexture.bind(SPECULAR_TEX_UNIT, shader, SPECULAR_UNI_NAME);
 
             bool useNormalMap = modelPart.material->normalMap.isSet();
             glUniform1i(shader.location("useNormalMap"), useNormalMap);
             if (useNormalMap)
-                modelPart.material->normalMap->bind(2, shader, "normalMap");
+                modelPart.material->normalMap->bind(NORMAL_TEX_UNIT, shader, NORMAL_UNI_NAME);
+            else
+                dummyTexture.bind(NORMAL_TEX_UNIT, shader, NORMAL_UNI_NAME);
 
             if (con.shadows)
                 glUniform1i(shader.location("useShadows"), room->entities.has<ShadowReceiver>(e));
