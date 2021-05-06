@@ -1,6 +1,13 @@
 config:
   namespace: Game
 
+AudioSettings:
+  _flags:
+    - not_a_component
+    - json_with_keys
+
+  masterVolume: [ float, 4. ]
+
 GraphicsSettings:
   _flags:
     - not_a_component
@@ -36,5 +43,7 @@ Settings:
     - json_with_keys
 
   graphics: GraphicsSettings
+  audio: AudioSettings
   keyInput: KeyInputSettings
   customSettings: [ json, json::object() ]
+  limitUpdatesPerSec: [ bool, false ]

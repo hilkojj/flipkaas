@@ -56,6 +56,15 @@ void Room3D::initializeLuaEnvironment()
     luaEnvironment["loadRiggedModels"] = [&] (const char *path, bool force) {
         loadModels(path, force, &uploadingRiggedTo, loadedRiggedMeshAttributes);
     };
+    luaEnvironment["project"] = [&] (const vec3 &pos) {
+        if (!camera)
+            return sol::optional<ivec2>();
+        bool inViewport = false;
+        vec3 pixelPos = camera->projectPixels(pos, inViewport);
+        if (!inViewport)
+            return sol::optional<ivec2>();
+        return sol::optional(ivec2(pixelPos));
+    };
 }
 
 void Room3D::update(double deltaTime)
