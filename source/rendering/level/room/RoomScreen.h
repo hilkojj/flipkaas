@@ -8,6 +8,7 @@
 #include <graphics/camera.h>
 #include <graphics/shader_asset.h>
 #include <graphics/frame_buffer.h>
+#include <graphics/cube_map.h>
 #include "EntityInspector3D.h"
 #include "../../../level/room/Room3D.h"
 
@@ -29,6 +30,7 @@ class RoomScreen : public Screen
             materials = true,
             riggedModels = true;
         ShaderProgram *skyShader = NULL;
+        CubeMap *skyBox = NULL;
     };
 
     bool showRoomEditor = false;

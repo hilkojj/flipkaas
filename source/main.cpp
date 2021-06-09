@@ -1,6 +1,5 @@
 #include <asset_manager/asset.h>
 #include <game/dibidab.h>
-#include <graphics/3d/model.h>
 #include <utils/json_model_loader.h>
 
 #include "game/Game.h"

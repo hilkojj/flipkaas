@@ -42,7 +42,8 @@ RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
         ),
         skyShader(
             "sky shader",
-            "shaders/fullscreen_quad.vert", "shaders/sky.frag"
+//            "shaders/fullscreen_quad.vert", "shaders/sky.frag"
+            "shaders/skybox.vert", "shaders/skybox.frag"
         ),
 
         dummyTexture(Texture::fromByteData(&dummyTexData[0], GL_RGB, 1, 1, GL_NEAREST, GL_NEAREST))
@@ -118,6 +119,7 @@ void RoomScreen::render(double deltaTime)
     finalImg.mask = ~0u;
     finalImg.shadows = Game::settings.graphics.shadows;
     finalImg.skyShader = &skyShader;
+    finalImg.skyBox = &asset<CubeMap>("environment_maps/san_giuseppe_bridge_4k").get();
     if (room->entities.valid(room->cameraEntity))
         if (auto *cp = room->entities.try_get<CameraPerspective>(room->cameraEntity))
             finalImg.mask = cp->visibilityMask;
@@ -292,12 +294,24 @@ void RoomScreen::renderRoom(const RenderContext &con)
     if (con.skyShader)
     {
         con.skyShader->use();
+
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);
         glDisable(GL_DEPTH_TEST);
         glDepthMask(GL_FALSE);
 
-        Mesh::getQuad()->render();
+        if (con.skyBox)
+        {
+            con.skyBox->bind(0);
+            glUniform1i(con.skyShader->location("skyBox"), 0);
+
+            glUniformMatrix4fv(con.skyShader->location("projection"), 1, GL_FALSE, &con.cam.projection[0][0]);
+            glUniformMatrix4fv(con.skyShader->location("view"), 1, GL_FALSE, &con.cam.view[0][0]);
+
+            Mesh::getCube()->render();
+        }
+        else
+            Mesh::getQuad()->render();
 
         glEnable(GL_DEPTH_TEST);
         glDisable(GL_BLEND);
