@@ -124,7 +124,7 @@ void RoomScreen::render(double deltaTime)
     finalImg.skyShader = &skyShader;
 
     if (room->environmentMap.isSet())
-        finalImg.skyBox = (irradianceMapAsSkyBox ? room->environmentMap->irradianceMap : room->environmentMap->original).get();
+        finalImg.skyBox = (irradianceMapAsSkyBox ? room->environmentMap->prefilteredReflectionMap : room->environmentMap->original).get();
 
     if (room->entities.valid(room->cameraEntity))
         if (auto *cp = room->entities.try_get<CameraPerspective>(room->cameraEntity))

@@ -23,8 +23,9 @@ void addAssetLoaders()
     AssetManager::addAssetLoader<EnvironmentMap>(".hdr", [] (auto &path) {
 
         auto map = new EnvironmentMap;
-        map->original = SharedCubeMap(new CubeMap(CubeMap::fromHDRFile(path.c_str())));
+        map->original = SharedCubeMap(new CubeMap(CubeMap::fromHDRFile(path.c_str(), 512)));
         map->createIrradianceMap(32, Game::settings.graphics.convolutionStepDelta);
+        map->prefilterReflectionMap(Game::settings.graphics.prefilteredReflectionMapResolution);
 
         return map;
     });
@@ -42,6 +43,9 @@ int main(int argc, char *argv[])
     };
 
     dibidab::init(argc, argv);
+
+    // enable seamless cubemap sampling for lower mip levels in the pre-filter cubemap.
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
     File::createDir("./saves"); // todo, see dibidab trello
     gu::setScreen(new GameScreen);

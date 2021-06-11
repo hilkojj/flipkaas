@@ -16,6 +16,7 @@ void setShaderDefinitions()
     ShaderDefinitions::defineFloat("FOG_START", Game::settings.graphics.fogStart);
     ShaderDefinitions::defineFloat("FOG_END", Game::settings.graphics.fogEnd);
     ShaderDefinitions::defineInt("FOG", Game::settings.graphics.fogEnabled);
+    ShaderDefinitions::define("PREFILTER_SAMPLE_COUNT", std::to_string(Game::settings.graphics.prefilteredReflectionMapSamples) + "u");
 }
 
 void Game::loadSettings()
