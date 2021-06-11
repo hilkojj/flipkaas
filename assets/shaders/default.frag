@@ -62,6 +62,8 @@ uniform sampler2D normalMap;
 
 uniform int useShadows; // todo: different shader for models that dont receive shadows? Sampling shadowmaps is expensive
 
+uniform samplerCube irradianceMap;
+
 uniform vec3 camPosition;
 
 #ifndef NR_OF_DIR_LIGHTS
@@ -113,6 +115,10 @@ F0: "how much the surface reflects if looking directly at the surface"
 vec3 fresnelSchlick(float cosTheta, vec3 F0)
 {
     return F0 + (1.0 - F0) * pow(max(1.0 - cosTheta, 0.0), 5.0);
+}
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
+{
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(max(1.0 - cosTheta, 0.0), 5.0);
 }
 
 // normal distribution function D
@@ -256,9 +262,9 @@ void main()
         albedo = texture(diffuseTexture, v_textureCoord).rgb;
         albedo = pow(albedo, vec3(GAMMA)); // sRGB to linear space. https://learnopengl.com/Advanced-Lighting/Gamma-Correction
     }
-    float metallic = .0;
+    float metallic = 0.;
     float roughness = 0.4;
-    float ao = 0.;
+    float ao = 1.;
 
     vec3 N = vec3(0, 0, 1);    // normal will be in World space.
 
@@ -286,7 +292,12 @@ void main()
     }
     #endif
 
-    vec3 ambient = vec3(0.03) * albedo * ao;
+    vec3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.), F0, roughness);
+    vec3 kD = 1. - kS;
+    vec3 irradiance = texture(irradianceMap, N).rgb;
+    vec3 diffuseColor = irradiance * albedo;
+    vec3 ambient = (kD * diffuseColor) * ao;
+
     vec3 color = ambient + Lo;
 
     // gamma correction:

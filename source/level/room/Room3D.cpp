@@ -213,3 +213,20 @@ bool Room3D::loadModels(const char *path, bool force, VertBuffer **vbPtr, const 
     modelFileLoadTime[path] = glfwGetTime();
     return true;
 }
+
+void Room3D::fromJson(const json &j)
+{
+    Room::fromJson(j);
+    try {
+        if (j.contains("environmentMap"))
+            environmentMap.set(j["environmentMap"]);
+    }
+    catch (std::exception &) {}
+}
+
+void Room3D::toJson(json &j)
+{
+    Room::toJson(j);
+    if (environmentMap.isSet())
+        j["environmentMap"] = environmentMap.getLoadedAsset().shortPath;
+}

@@ -7,6 +7,7 @@
 #include <graphics/camera.h>
 #include <graphics/3d/model.h>
 #include "../../generated/Transform.hpp"
+#include "../../rendering/level/room/EnvironmentMap.h"
 
 class Room3D : public Room
 {
@@ -23,6 +24,8 @@ class Room3D : public Room
     VertAttributes loadedMeshAttributes, loadedRiggedMeshAttributes;
     std::unordered_map<std::string, SharedModel> models;
 
+    asset<EnvironmentMap> environmentMap;
+
     Room3D();
 
     void update(double deltaTime) override;
@@ -34,6 +37,10 @@ class Room3D : public Room
     Camera *cameraFromEntity(entt::entity) const;
 
     static mat4 transformFromComponent(const Transform &);
+
+    virtual void toJson(json &) override;
+
+    virtual void fromJson(const json &) override;
 
     ~Room3D() override;
 

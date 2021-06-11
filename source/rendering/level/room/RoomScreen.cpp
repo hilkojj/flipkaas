@@ -12,6 +12,8 @@
 
 const GLubyte dummyTexData[] = {0, 0, 0};
 
+bool irradianceMapAsSkyBox = true;
+
 RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
         :
         room(room), showRoomEditor(showRoomEditor), inspector(*room, "Room"),
@@ -120,7 +122,10 @@ void RoomScreen::render(double deltaTime)
     finalImg.mask = ~0u;
     finalImg.shadows = Game::settings.graphics.shadows;
     finalImg.skyShader = &skyShader;
-    finalImg.skyBox = asset<EnvironmentMap>("environment_maps/san_giuseppe_bridge_4k")->irradianceMap.get();
+
+    if (room->environmentMap.isSet())
+        finalImg.skyBox = (irradianceMapAsSkyBox ? room->environmentMap->irradianceMap : room->environmentMap->original).get();
+
     if (room->entities.valid(room->cameraEntity))
         if (auto *cp = room->entities.try_get<CameraPerspective>(room->cameraEntity))
             finalImg.mask = cp->visibilityMask;
@@ -234,6 +239,23 @@ void RoomScreen::renderDebugStuff()
 
         ImGui::DragFloat("HDR exposure", &hdrExposure, .1, 0, 10);
 
+        if (ImGui::BeginMenu("Environment map"))
+        {
+            for (auto &[path, asset] : AssetManager::getLoadedAssetsForType<EnvironmentMap>())
+            {
+                if (path != asset->fullPath)
+                    continue;
+
+                bool selected = room->environmentMap.isSet() && room->environmentMap.getLoadedAsset().fullPath == asset->fullPath;
+
+                if (ImGui::MenuItem(asset->shortPath.c_str(), NULL, selected))
+                    room->environmentMap.set(asset->fullPath);
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::MenuItem("Irradiance map as skybox", NULL, &irradianceMapAsSkyBox);
+
+        ImGui::Separator();
         if (ImGui::MenuItem("View as JSON"))
         {
             auto &tab = CodeEditor::tabs.emplace_back();
@@ -323,11 +345,15 @@ void RoomScreen::renderRoom(const RenderContext &con)
 const int
     DIFFUSE_TEX_UNIT = 0,
     SPECULAR_TEX_UNIT = 1,
-    NORMAL_TEX_UNIT = 2;
+    NORMAL_TEX_UNIT = 2,
+
+    IRRADIANCE_MAP_TEX_UNIT = 3;
 const char
     *DIFFUSE_UNI_NAME = "diffuseTexture",
     *SPECULAR_UNI_NAME = "specularMap",
-    *NORMAL_UNI_NAME = "normalMap";
+    *NORMAL_UNI_NAME = "normalMap",
+
+    *IRRADIANCE_UNI_NAME = "irradianceMap";
 
 void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, entt::entity e, const Transform &t, const RenderModel &rm, const Rigged *rig)
 {
@@ -386,6 +412,13 @@ void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, en
 
             if (con.shadows)
                 glUniform1i(shader.location("useShadows"), room->entities.has<ShadowReceiver>(e));
+
+            if (room->environmentMap.isSet())
+            {
+                room->environmentMap->irradianceMap->bind(IRRADIANCE_MAP_TEX_UNIT);
+                glUniform1i(shader.location(IRRADIANCE_UNI_NAME), IRRADIANCE_MAP_TEX_UNIT);
+            }
+            // todo: else dummy cube texture?
         }
 
         if (rig && !modelPart.bones.empty())
