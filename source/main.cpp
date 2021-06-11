@@ -5,6 +5,7 @@
 #include "game/Game.h"
 #include "rendering/GameScreen.h"
 #include "level/room/Room3D.h"
+#include "rendering/level/room/EnvironmentMap.h"
 
 void initLuaStuff()
 {
@@ -17,8 +18,21 @@ void initLuaStuff()
     };
 }
 
+void addAssetLoaders()
+{
+    AssetManager::addAssetLoader<EnvironmentMap>(".hdr", [] (auto &path) {
+
+        auto map = new EnvironmentMap;
+        map->original = SharedCubeMap(new CubeMap(CubeMap::fromHDRFile(path.c_str())));
+        map->createIrradianceMap(32, Game::settings.graphics.convolutionStepDelta);
+
+        return map;
+    });
+}
+
 int main(int argc, char *argv[])
 {
+    addAssetLoaders();
     Game::loadSettings();
 
     Level::customRoomLoader = [] (const json &j) {

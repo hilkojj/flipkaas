@@ -8,6 +8,7 @@
 #include "../../../generated/Model.hpp"
 #include "../../../generated/Light.hpp"
 #include "../../../game/Game.h"
+#include "EnvironmentMap.h"
 
 const GLubyte dummyTexData[] = {0, 0, 0};
 
@@ -119,7 +120,7 @@ void RoomScreen::render(double deltaTime)
     finalImg.mask = ~0u;
     finalImg.shadows = Game::settings.graphics.shadows;
     finalImg.skyShader = &skyShader;
-    finalImg.skyBox = &asset<CubeMap>("environment_maps/san_giuseppe_bridge_4k").get();
+    finalImg.skyBox = asset<EnvironmentMap>("environment_maps/san_giuseppe_bridge_4k")->irradianceMap.get();
     if (room->entities.valid(room->cameraEntity))
         if (auto *cp = room->entities.try_get<CameraPerspective>(room->cameraEntity))
             finalImg.mask = cp->visibilityMask;

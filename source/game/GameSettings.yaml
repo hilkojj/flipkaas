@@ -25,6 +25,8 @@ GraphicsSettings:
   fogEnd: [float, 30]
   fogEnabled: [bool, true]
 
+  convolutionStepDelta: [float, 0.02]
+
   debugShadowBoxes: [bool, true]
   debugArmatures: [bool, true]
 
