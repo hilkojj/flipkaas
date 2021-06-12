@@ -3,6 +3,7 @@
 #include <level/Level.h>
 #include <game/dibidab.h>
 #include <graphics/orthographic_camera.h>
+#include <utils/quad_renderer.h>
 #include "RoomScreen.h"
 #include "../../../generated/Camera.hpp"
 #include "../../../generated/Model.hpp"
@@ -53,6 +54,7 @@ RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
 {
     assert(room != NULL);
     inspector.createEntity_showSubFolder = "level_room";
+    EnvironmentMap::getBRDFLookUpTexture(); // create once.
 }
 
 OrthographicCamera camForDirLight(Transform &t, ShadowRenderer &sr)
@@ -124,7 +126,7 @@ void RoomScreen::render(double deltaTime)
     finalImg.skyShader = &skyShader;
 
     if (room->environmentMap.isSet())
-        finalImg.skyBox = (irradianceMapAsSkyBox ? room->environmentMap->prefilteredReflectionMap : room->environmentMap->original).get();
+        finalImg.skyBox = (irradianceMapAsSkyBox ? room->environmentMap->irradianceMap : room->environmentMap->original).get();
 
     if (room->entities.valid(room->cameraEntity))
         if (auto *cp = room->entities.try_get<CameraPerspective>(room->cameraEntity))
@@ -213,6 +215,8 @@ void RoomScreen::renderDebugStuff()
 
     debugTextI = 0;
 
+    static bool debugBRDFLUT = false;
+
     fbo->blitTo(GL_DEPTH_BUFFER_BIT);   // the debug lines will be depth-tested with the depth of the rendered scene
 
     {
@@ -255,6 +259,8 @@ void RoomScreen::renderDebugStuff()
         }
         ImGui::MenuItem("Irradiance map as skybox", NULL, &irradianceMapAsSkyBox);
 
+        ImGui::MenuItem("Debug BRDF lookup texture", NULL, &debugBRDFLUT);
+
         ImGui::Separator();
         if (ImGui::MenuItem("View as JSON"))
         {
@@ -276,6 +282,9 @@ void RoomScreen::renderDebugStuff()
         ImGui::EndMenu();
     }
     ImGui::EndMainMenuBar();
+
+    if (debugBRDFLUT)
+        QuadRenderer::render(&EnvironmentMap::getBRDFLookUpTexture());
 }
 
 RoomScreen::~RoomScreen()
@@ -347,13 +356,18 @@ const int
     SPECULAR_TEX_UNIT = 1,
     NORMAL_TEX_UNIT = 2,
 
-    IRRADIANCE_MAP_TEX_UNIT = 3;
+    IRRADIANCE_MAP_TEX_UNIT = 3,
+    PREFILTER_MAP_TEX_UNIT = 4,
+    BRDF_LUT_TEX_UNIT = 5;
+
 const char
     *DIFFUSE_UNI_NAME = "diffuseTexture",
     *SPECULAR_UNI_NAME = "specularMap",
     *NORMAL_UNI_NAME = "normalMap",
 
-    *IRRADIANCE_UNI_NAME = "irradianceMap";
+    *IRRADIANCE_UNI_NAME = "irradianceMap",
+    *PREFILTER_UNI_NAME = "prefilterMap",
+    *BRDF_LUT_UNI_NAME = "brdfLUT";
 
 void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, entt::entity e, const Transform &t, const RenderModel &rm, const Rigged *rig)
 {
@@ -412,13 +426,6 @@ void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, en
 
             if (con.shadows)
                 glUniform1i(shader.location("useShadows"), room->entities.has<ShadowReceiver>(e));
-
-            if (room->environmentMap.isSet())
-            {
-                room->environmentMap->irradianceMap->bind(IRRADIANCE_MAP_TEX_UNIT);
-                glUniform1i(shader.location(IRRADIANCE_UNI_NAME), IRRADIANCE_MAP_TEX_UNIT);
-            }
-            // todo: else dummy cube texture?
         }
 
         if (rig && !modelPart.bones.empty())
@@ -515,6 +522,19 @@ void RoomScreen::initializeShader(const RenderContext &con, ShaderProgram &shade
         });
     }
     else shader.use();
+
+    if (room->environmentMap.isSet())
+    {
+        room->environmentMap->irradianceMap->bind(IRRADIANCE_MAP_TEX_UNIT);
+        glUniform1i(shader.location(IRRADIANCE_UNI_NAME), IRRADIANCE_MAP_TEX_UNIT);
+
+        room->environmentMap->prefilteredReflectionMap->bind(PREFILTER_MAP_TEX_UNIT);
+        glUniform1i(shader.location(PREFILTER_UNI_NAME), PREFILTER_MAP_TEX_UNIT);
+
+        EnvironmentMap::getBRDFLookUpTexture().bind(BRDF_LUT_TEX_UNIT);
+        glUniform1i(shader.location(BRDF_LUT_UNI_NAME), BRDF_LUT_TEX_UNIT);
+    }
+    // todo: else dummy cube texture?
 
     glUniform3fv(shader.location("camPosition"), 1, &con.cam.position[0]);
 }

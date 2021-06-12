@@ -63,6 +63,8 @@ uniform sampler2D normalMap;
 uniform int useShadows; // todo: different shader for models that dont receive shadows? Sampling shadowmaps is expensive
 
 uniform samplerCube irradianceMap;
+uniform samplerCube prefilterMap;
+uniform sampler2D brdfLUT;
 
 uniform vec3 camPosition;
 
@@ -262,8 +264,8 @@ void main()
         albedo = texture(diffuseTexture, v_textureCoord).rgb;
         albedo = pow(albedo, vec3(GAMMA)); // sRGB to linear space. https://learnopengl.com/Advanced-Lighting/Gamma-Correction
     }
-    float metallic = 0.;
-    float roughness = 0.4;
+    float metallic = 0.3;
+    float roughness = .0;
     float ao = 1.;
 
     vec3 N = vec3(0, 0, 1);    // normal will be in World space.
@@ -292,11 +294,22 @@ void main()
     }
     #endif
 
-    vec3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.), F0, roughness);
+    vec3 R = reflect(-V, N);
+    vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
+
+    vec3 kS = F;
     vec3 kD = 1. - kS;
+    kD *= 1. - metallic;
+
     vec3 irradiance = texture(irradianceMap, N).rgb;
     vec3 diffuseColor = irradiance * albedo;
-    vec3 ambient = (kD * diffuseColor) * ao;
+
+    const float MAX_REFLECTION_LOD = 4.;
+    vec3 prefilteredColor = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
+    vec2 envBRDF = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+    vec3 specularColor = prefilteredColor * (F * envBRDF.x + envBRDF.y);
+
+    vec3 ambient = (kD * diffuseColor + specularColor) * ao;
 
     vec3 color = ambient + Lo;
 

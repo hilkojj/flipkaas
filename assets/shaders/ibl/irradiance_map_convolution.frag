@@ -30,10 +30,10 @@ void main()
             // tangent space to world
             vec3 sampleVec = tangentSample.x * right + tangentSample.y * up + tangentSample.z * normal;
 
-            vec3 sampl = texture(environmentMap, sampleVec).rgb * cos(theta) * sin(theta);
+            vec3 sampl = textureLod(environmentMap, sampleVec, 0.).rgb * cos(theta) * sin(theta);   // WE NEED TO SELECT MIPMAP LVL 0 BECAUSE reasons
 
             // fix for issue where some pixels are increadibly bright, causing weird patterns. https://learnopengl.com/PBR/IBL/Diffuse-irradiance#comment-4935613773
-            sampl = min(vec3(100), sampl);
+            sampl = min(vec3(50), sampl);
 
             irradiance += sampl;
             nrSamples++;

@@ -109,7 +109,7 @@ void EnvironmentMap::prefilterReflectionMap(unsigned int resolution)
     for (unsigned int i = 0; i < 6; ++i)
     {
         #ifdef EMSCRIPTEN   // using rgbA instead of rgb fixes WebGL error: "Framebuffer not complete. (status: 0x8cd6) COLOR_ATTACHMENT0: Attachment has an effective format of RGB16F, which is not renderable."
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA16F, resolution, resolution, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA16F, resolution, resolution, 0, GL_RGBA, GL_FLOAT, NULL);
         #else
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, resolution, resolution, 0, GL_RGB, GL_FLOAT, NULL);
         #endif
@@ -165,4 +165,52 @@ void EnvironmentMap::prefilterReflectionMap(unsigned int resolution)
     glViewport(0, 0, gu::width, gu::height);
 
     prefilteredReflectionMap = std::make_shared<CubeMap>(prefilterMap, resolution, resolution);
+}
+
+Texture &EnvironmentMap::getBRDFLookUpTexture()
+{
+    static Texture *lut = NULL;
+
+    if (!lut)
+    {
+        const static int RESOLUTION = 512;
+
+        unsigned int brdfLUTTexture;
+        glGenTextures(1, &brdfLUTTexture);
+
+        // pre-allocate enough memory for the LUT texture.
+        glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, RESOLUTION, RESOLUTION, 0, GL_RG, GL_FLOAT, 0);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);    // prevent edge sampling artifacts
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);    // ''
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+
+        // create frame and render buffers in OpenGL:
+        unsigned int captureFBO, captureRBO;
+        glGenFramebuffers(1, &captureFBO);
+        glGenRenderbuffers(1, &captureRBO);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+        glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, RESOLUTION, RESOLUTION);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, brdfLUTTexture, 0);
+
+        glViewport(0, 0, RESOLUTION, RESOLUTION);
+
+        ShaderProgram brdfShader("prefilter shader",
+                              File::readString("assets/shaders/fullscreen_quad.vert").c_str(),
+                              File::readString("assets/shaders/ibl/brdfLUT.frag").c_str());
+
+        brdfShader.use();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        Mesh::getQuad()->render();
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, gu::width, gu::height);    // TODO. (note) FrameBuffer::unbindCurrent() uses gu::widthPixels instead..
+
+        lut = new Texture(brdfLUTTexture, RESOLUTION, RESOLUTION);
+    }
+    return *lut;
 }

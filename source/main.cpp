@@ -24,8 +24,10 @@ void addAssetLoaders()
 
         auto map = new EnvironmentMap;
         map->original = SharedCubeMap(new CubeMap(CubeMap::fromHDRFile(path.c_str(), 512)));
-        map->createIrradianceMap(32, Game::settings.graphics.convolutionStepDelta);
+
+        // this order is important:
         map->prefilterReflectionMap(Game::settings.graphics.prefilteredReflectionMapResolution);
+        map->createIrradianceMap(32, Game::settings.graphics.convolutionStepDelta);
 
         return map;
     });
