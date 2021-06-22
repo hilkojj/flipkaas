@@ -264,8 +264,8 @@ void main()
         albedo = texture(diffuseTexture, v_textureCoord).rgb;
         albedo = pow(albedo, vec3(GAMMA)); // sRGB to linear space. https://learnopengl.com/Advanced-Lighting/Gamma-Correction
     }
-    float metallic = 0.3;
-    float roughness = .0;
+    float metallic = 0.1;
+    float roughness = .3;
     float ao = 1.;
 
     vec3 N = vec3(0, 0, 1);    // normal will be in World space.

@@ -2,6 +2,7 @@
 #include <graphics/3d/perspective_camera.h>
 #include <utils/camera/flying_camera_controller.h>
 #include <utils/json_model_loader.h>
+#include <utils/gltf_model_loader.h>
 #include <graphics/3d/tangent_calculator.h>
 #include <game/dibidab.h>
 #include "Room3D.h"
@@ -27,6 +28,31 @@ Room3D::Room3D()
         .add_(VertAttributes::BONE_WEIGHT_3);
 
     addSystem(new ArmatureAnimationSystem("Armature animations"));
+
+
+    auto jsonModels = JsonModelLoader::fromUbjsonFile("assets/models/cubeman.ubj", &loadedRiggedMeshAttributes);
+    VertBuffer::uploadSingleMesh(jsonModels.back()->parts.back().mesh);
+
+    GltfModelLoader loader(loadedRiggedMeshAttributes);
+    loader.fromBinaryFile("assets/models/cubeman.glb");
+
+    VertBuffer::uploadSingleMesh(loader.meshes.back());
+    auto &m = models["Cubeman"] = std::make_shared<Model>("Cubeman");
+
+    m->parts.emplace_back().mesh = loader.meshes.back();
+    m->parts.back().material = std::make_shared<Material>();
+    m->parts.back().material->diffuse = vec3(1, 0, 0);
+    m->parts.back().meshPartIndex = 0;
+
+    m->parts.emplace_back().mesh = loader.meshes.back();
+    m->parts.back().material = std::make_shared<Material>();
+    m->parts.back().material->diffuse = vec3(0, 1, 0);
+    m->parts.back().meshPartIndex = 1;
+
+    m->parts.emplace_back().mesh = loader.meshes.back();
+    m->parts.back().material = std::make_shared<Material>();
+    m->parts.back().material->diffuse = vec3(0, 0, 1);
+    m->parts.back().meshPartIndex = 2;
 }
 
 vec3 Room3D::getPosition(entt::entity e) const
