@@ -12,14 +12,14 @@ function create(player)
         RenderModel {
             modelName = "Cubeman"
         },
-        Rigged {
-            playingAnimations = {
-                PlayAnimation {
-                    name = "testanim",
-                    influence = 1,
-                }
-            }
-        },
+        --Rigged {
+        --    playingAnimations = {
+        --        PlayAnimation {
+        --            name = "testanim",
+        --            influence = 1,
+        --        }
+        --    }
+        --},
         ShadowCaster()
     })
 

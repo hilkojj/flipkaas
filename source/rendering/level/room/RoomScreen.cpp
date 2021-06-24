@@ -353,7 +353,7 @@ void RoomScreen::renderRoom(const RenderContext &con)
 
 const int
     DIFFUSE_TEX_UNIT = 0,
-    SPECULAR_TEX_UNIT = 1,
+    MET_ROUG_TEX_UNIT = 1,
     NORMAL_TEX_UNIT = 2,
 
     IRRADIANCE_MAP_TEX_UNIT = 3,
@@ -362,7 +362,7 @@ const int
 
 const char
     *DIFFUSE_UNI_NAME = "diffuseTexture",
-    *SPECULAR_UNI_NAME = "specularMap",
+    *MET_ROUG_UNI_NAME = "metallicRoughnessTexture",
     *NORMAL_UNI_NAME = "normalMap",
 
     *IRRADIANCE_UNI_NAME = "irradianceMap",
@@ -398,29 +398,30 @@ void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, en
 
         if (con.materials)
         {
-            glUniform3fv(shader.location("diffuse"), 1, &modelPart.material->diffuse[0]);
-
-            vec4 specAndExp = vec4(vec3(modelPart.material->specular) * modelPart.material->specular.a, modelPart.material->shininess);
-            glUniform4fv(shader.location("specular"), 1, &specAndExp[0]);
-
             bool useDiffuseTexture = modelPart.material->diffuseTexture.isSet();
             glUniform1i(shader.location("useDiffuseTexture"), useDiffuseTexture);
             if (useDiffuseTexture)
-                modelPart.material->diffuseTexture->bind(DIFFUSE_TEX_UNIT, shader, DIFFUSE_UNI_NAME);
+                modelPart.material->diffuseTexture.get().bind(DIFFUSE_TEX_UNIT, shader, DIFFUSE_UNI_NAME);
             else
+            {
+                glUniform3fv(shader.location("diffuse"), 1, &modelPart.material->diffuse[0]);
                 dummyTexture.bind(DIFFUSE_TEX_UNIT, shader, DIFFUSE_UNI_NAME);
+            }
 
-            bool useSpecularMap = modelPart.material->specularMap.isSet();
-            glUniform1i(shader.location("useSpecularMap"), useSpecularMap);
-            if (useSpecularMap)
-                modelPart.material->specularMap->bind(SPECULAR_TEX_UNIT, shader, SPECULAR_UNI_NAME);
+            bool useMetallicRoughnessTexture = modelPart.material->metallicRoughnessTexture.isSet();
+            glUniform1i(shader.location("useMetallicRoughnessTexture"), useMetallicRoughnessTexture);
+            if (useMetallicRoughnessTexture)
+                modelPart.material->metallicRoughnessTexture.get().bind(MET_ROUG_TEX_UNIT, shader, MET_ROUG_UNI_NAME);
             else
-                dummyTexture.bind(SPECULAR_TEX_UNIT, shader, SPECULAR_UNI_NAME);
+            {
+                glUniform2fv(shader.location("metallicRoughnessFactors"), 1, &modelPart.material->metallic);
+                dummyTexture.bind(MET_ROUG_TEX_UNIT, shader, MET_ROUG_UNI_NAME);
+            }
 
             bool useNormalMap = modelPart.material->normalMap.isSet();
             glUniform1i(shader.location("useNormalMap"), useNormalMap);
             if (useNormalMap)
-                modelPart.material->normalMap->bind(NORMAL_TEX_UNIT, shader, NORMAL_UNI_NAME);
+                modelPart.material->normalMap.get().bind(NORMAL_TEX_UNIT, shader, NORMAL_UNI_NAME);
             else
                 dummyTexture.bind(NORMAL_TEX_UNIT, shader, NORMAL_UNI_NAME);
 
