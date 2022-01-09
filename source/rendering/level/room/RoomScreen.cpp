@@ -146,6 +146,8 @@ void RoomScreen::render(double deltaTime)
 
     if (Game::settings.graphics.bloomBlurIterations)
     {
+        // todo: better bloom implementation: https://www.youtube.com/watch?v=tI70-HIc5ro
+
         gu::profiler::Zone z1("bloom");
         bool horizontal = true, firstIteration = true;
         blurShader.use();
@@ -387,7 +389,7 @@ void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, en
 
     for (auto &modelPart : model->parts)
     {
-        if (!modelPart.material || !modelPart.mesh)
+        if (!modelPart.material || !modelPart.mesh) // TODO: give warning if modelpart has no material?
             continue;
 
         if (!modelPart.mesh->vertBuffer)
@@ -429,11 +431,11 @@ void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, en
                 glUniform1i(shader.location("useShadows"), room->entities.has<ShadowReceiver>(e));
         }
 
-        if (rig && !modelPart.bones.empty())
+        if (rig && !modelPart.armature->bones.empty())
         {
-            std::vector<mat4> matrices(modelPart.bones.size());
+            std::vector<mat4> matrices(modelPart.armature->bones.size());
             int i = 0;
-            for (auto &bone : modelPart.bones)
+            for (auto &bone : modelPart.armature->bones)
             {
                 auto it = rig->bonePoseTransform.find(bone);
                 matrices[i++] = it == rig->bonePoseTransform.end() ? mat4(1) : it->second;
@@ -616,49 +618,43 @@ void RoomScreen::debugArmatures()
             auto &arm = *modelPart.armature.get();
 
             int depth = 0;
-            std::function<void(SharedBone &, mat4 &, mat4 &)> renderBone;
-            renderBone = [&] (SharedBone &bone, mat4 &parent, mat4 &parentBonePoseTransform) {
+            std::function<void(SharedBone &, mat4)> renderBone;
+            renderBone = [&] (SharedBone &bone, mat4 globalParent) {
                 depth++;
 
-                mat4 mat = parent * bone->getBoneSpaceTransform();
+                auto global = rig.bonePoseTransform[bone] * inverse(bone->inverseBindMatrix);
+                global = transform * global;
 
-                vec3 p0 = parent * vec4(mu::ZERO_3, 1);
-                p0 = parentBonePoseTransform * vec4(p0, 1);
-                vec3 p1 = mat * vec4(mu::ZERO_3, 1);
-                vec3 p2 = mat * vec4(0, 0, -.3, 1); // slight offset just for debugging
+                vec3 parentJointPos = globalParent * vec4(mu::ZERO_3, 1);
+                vec3 jointPos = global * vec4(mu::ZERO_3, 1);
+                vec3 debugOffset = global * vec4(0, .2, 0, 1);
 
-                mat4 bonePoseTransform(1);
-                // transform the "vertices" by the bonePoseTransforms, just like the vertex shader should do.
-                if (rig.bonePoseTransform.find(bone) != rig.bonePoseTransform.end())
-                {
-                    bonePoseTransform = rig.bonePoseTransform[bone];  // NOT MODEL SPACE. Vertices should be multiplied by this.
-                    p1 = bonePoseTransform * vec4(p1, 1);
-                    p2 = bonePoseTransform * vec4(p2, 1);
-                }
-                p0 = transform * vec4(p0, 1);
-                p1 = transform * vec4(p1, 1);
-                p2 = transform * vec4(p2, 1);
+                lineRenderer.axes(jointPos, .05, vec3(1));
+
+                debugText(bone->name, debugOffset);
+
                 vec3 color = std::vector<vec3>{
                         vec3(52, 235, 164),
                         vec3(233, 166, 245),
                         vec3(242, 214, 131)
                 }[depth % 3] / 255.f;
 
-                if (depth > 1) lineRenderer.line(p0, p1, color);
-                lineRenderer.axes(p1, .05, vec3(1));
-
-                debugText(splitString(bone->name, "__").back(), p2);
+                if (depth > 1)
+                    lineRenderer.line(parentJointPos, jointPos, color);
+                if (bone->children.empty())
+                    lineRenderer.line(jointPos, debugOffset, mu::X);
 
                 for (auto &child : bone->children)
-                    renderBone(child, mat, bonePoseTransform);
+                    renderBone(child, global);
 
-                if (bone->children.empty())
-                    lineRenderer.line(p1, p2, mu::X);
                 depth--;
             };
-            mat4 id(1);
-            if (arm.root)
-                renderBone(arm.root, id, id);
+            for (auto &bone : arm.bones)
+            {
+                if (!bone->parent)
+                    renderBone(bone, mat4(1));
+            }
+
 
             break;
         }

@@ -7,19 +7,19 @@ function create(player)
 
     setComponents(player, {
         Transform {
-            position = vec3(0, -1, 3)
+--             position = vec3(0, -1, 3)
         },
         RenderModel {
             modelName = "Cubeman"
         },
-        --Rigged {
-        --    playingAnimations = {
-        --        PlayAnimation {
-        --            name = "testanim",
-        --            influence = 1,
-        --        }
-        --    }
-        --},
+        Rigged {
+            playingAnimations = {
+                PlayAnimation {
+                    name = "testanim",
+                    influence = 1,
+                }
+            }
+        },
         ShadowCaster()
     })
 

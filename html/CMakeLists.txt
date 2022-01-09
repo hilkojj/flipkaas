@@ -6,7 +6,7 @@ add_compile_definitions(PUT_A_SOCK_IN_IT)
 set(EXECUTABLE_OUTPUT_PATH "out")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(PythonInterp 3.7 REQUIRED)
+find_package(PythonInterp 3 REQUIRED)
 set(LUA_SERDE_COMMAND ${PYTHON_EXECUTABLE} ../external/dibidab-engine/external/lua-serde/lua-json-serde.py ../source/generated/ ../source/ ../../external/dibidab-engine/source/macro_magic/component.h)
 
 execute_process(COMMAND ${LUA_SERDE_COMMAND} WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})

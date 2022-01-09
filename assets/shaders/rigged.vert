@@ -5,10 +5,8 @@ layout(location = 1) in vec3 a_normal;
 layout(location = 2) in vec3 a_tangent;
 layout(location = 3) in vec2 a_textureCoord;
 
-layout(location = 4) in vec2 a_boneIdAndWeight0;
-layout(location = 5) in vec2 a_boneIdAndWeight1;
-layout(location = 6) in vec2 a_boneIdAndWeight2;
-layout(location = 7) in vec2 a_boneIdAndWeight3;
+layout(location = 4) in uvec4 a_boneIds;
+layout(location = 5) in vec4 a_boneWeights;
 
 uniform mat4 mvp;
 uniform mat4 transform;
@@ -24,11 +22,8 @@ out mat3 v_TBN;
 out float v_fog;
 #endif
 
-void applyBone(vec2 boneIdAndWeight, inout vec4 totalLocalPos, inout vec4 totalNormal, inout vec4 totalTangent, inout float w)
+void applyBone(uint boneId, float weight, inout vec4 totalLocalPos, inout vec4 totalNormal, inout vec4 totalTangent, inout float w)
 {
-    int boneId = int(boneIdAndWeight.x);
-    float weight = boneIdAndWeight.y;
-
     w += weight;
 
     mat4 poseTransform = bonePoseTransforms[boneId];
@@ -50,12 +45,10 @@ void main()
     vec4 totalNormal = vec4(0.0);
     vec4 totalTangent = vec4(0.0);
 
-    applyBone(a_boneIdAndWeight0, totalLocalPos, totalNormal, totalTangent, weight);
-    applyBone(a_boneIdAndWeight1, totalLocalPos, totalNormal, totalTangent, weight);
-    applyBone(a_boneIdAndWeight2, totalLocalPos, totalNormal, totalTangent, weight);
-    applyBone(a_boneIdAndWeight3, totalLocalPos, totalNormal, totalTangent, weight);
-
-    totalLocalPos.xyz += a_position * (1. - weight);
+    applyBone(a_boneIds[0], a_boneWeights[0], totalLocalPos, totalNormal, totalTangent, weight);
+    applyBone(a_boneIds[1], a_boneWeights[1], totalLocalPos, totalNormal, totalTangent, weight);
+    applyBone(a_boneIds[2], a_boneWeights[2], totalLocalPos, totalNormal, totalTangent, weight);
+    applyBone(a_boneIds[3], a_boneWeights[3], totalLocalPos, totalNormal, totalTangent, weight);
 
     gl_Position = mvp * vec4(totalLocalPos.xyz, 1.0);
 

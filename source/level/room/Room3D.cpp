@@ -22,10 +22,12 @@ Room3D::Room3D()
 
     loadedRiggedMeshAttributes = loadedMeshAttributes;
     loadedRiggedMeshAttributes
-        .add_(VertAttributes::BONE_WEIGHT_0)
-        .add_(VertAttributes::BONE_WEIGHT_1)
-        .add_(VertAttributes::BONE_WEIGHT_2)
-        .add_(VertAttributes::BONE_WEIGHT_3);
+        .add_(VertAttributes::JOINTS)
+        .add_(VertAttributes::WEIGHTS);
+//        .add_(VertAttributes::BONE_WEIGHT_0)
+//        .add_(VertAttributes::BONE_WEIGHT_1)
+//        .add_(VertAttributes::BONE_WEIGHT_2)
+//        .add_(VertAttributes::BONE_WEIGHT_3);
 
     addSystem(new ArmatureAnimationSystem("Armature animations"));
 
@@ -144,7 +146,7 @@ void Room3D::updateOrCreateCamera(double deltaTime)
         static float speedMultiplier = 1;
         FlyingCameraController camController(camera);
         camController.speedMultiplier = speedMultiplier;
-        camController.update(deltaTime);
+        camController.update(deltaTime);    // todo: CRASH: when flying and pressing R to reload level, segfault :)
         speedMultiplier = camController.speedMultiplier;
 
         {
