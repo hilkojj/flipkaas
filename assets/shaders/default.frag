@@ -13,18 +13,13 @@ struct PointLight
 //    float quadratic;
     vec3 attenuation; // x: constant, y: linear, z: quadratic
 
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
+    vec3 color;
 };
 
 struct DirectionalLight
 {
     vec3 direction;
-
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
+    vec3 color;
 };
 
 #if SHADOWS
@@ -175,7 +170,7 @@ void pointLightRadiance(PointLight light, vec3 N, vec3 V, vec3 F0, inout vec3 Lo
     float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance));
 //    float attenuation = 1.0 / (distance * distance);
 
-    vec3 radiance = light.diffuse * attenuation;
+    vec3 radiance = light.color * attenuation;
 
     // cook-torrance brdf
     float NDF = distributionGGX(N, H, roughness);
@@ -195,69 +190,50 @@ void pointLightRadiance(PointLight light, vec3 N, vec3 V, vec3 F0, inout vec3 Lo
     Lo += (kD * albedo / PI + specular) * radiance * NdotL;
 }
 
+void dirLightRadiance(DirectionalLight light, vec3 N, vec3 V, vec3 F0, inout vec3 Lo, float roughness, float metallic, vec3 albedo, float shadow)
+{
+    vec3 L = -light.direction;
+    vec3 H = normalize(V + L);  // halfway
+
+    vec3 radiance = light.color * (1. - shadow);
+
+    // cook-torrance brdf
+    float NDF = distributionGGX(N, H, roughness);
+    float G = geometrySmith(N, V, L, roughness);
+    vec3 F = fresnelSchlick(max(dot(H, V), 0.), F0);
+
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+    kD *= 1.0 - metallic;
+
+    vec3 numerator    = NDF * G * F;
+    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0);
+    vec3 specular     = numerator / max(denominator, 0.001);
+
+    // add to outgoing radiance Lo
+    float NdotL = max(dot(N, L), 0.0);
+    Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+}
+
+void dirShadowLightRadiance(DirectionalShadowLight light, vec3 N, vec3 V, vec3 F0, inout vec3 Lo, float roughness, float metallic, vec3 albedo, sampler2DShadow map)
+{
+    float shadow = 0.;
+    if (useShadows == 1)
+    {
+        vec4 shadowMapCoords = light.shadowSpace * vec4(v_position, 1);
+        shadowMapCoords = shadowMapCoords * .5 + .5;
+        if (shadowMapCoords.x >= 0. && shadowMapCoords.x <= 1. && shadowMapCoords.y >= 0. && shadowMapCoords.y <= 1. && shadowMapCoords.z <= 1.)
+        {
+            shadow = 1. - texture(map, shadowMapCoords.xyz);
+            // OpenGL will use the Z component to compare this fragment's depth to the depth on the shadow map
+            // OpenGL will return a value between 0 and 1, based on how much shadow this fragment should have.
+        }
+    }
+    dirLightRadiance(light.light, N, V, F0, Lo, roughness, metallic, albedo, shadow);
+}
+
+
 // --------------------------------------------
-
-
-// old.
-//void calcPointLight(PointLight light, vec3 normal, vec3 viewDir, inout vec3 totalDiffuse, inout vec3 totalSpecular, inout vec3 totalAmbient)
-//{
-//    vec3 lightDir = normalize(light.position - v_position);
-//
-//    // diffuse shading
-//    float diff = max(dot(normal, lightDir), 0.0);
-//
-//    // specular shading (Blinn-Phong)
-//    vec3 halfwayDir = normalize(lightDir + viewDir);
-//    float spec = pow(max(dot(normal, halfwayDir), 0.0), specular.a * 8.);
-//
-//    // attenuation
-//    float constant = light.attenuation.x;
-//    float linear = light.attenuation.y;
-//    float quadratic = light.attenuation.z;
-//
-//    float distance    = length(light.position - v_position);
-//    float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance));
-//
-//    // combine results
-//    totalAmbient  += light.ambient  * attenuation;
-//    totalDiffuse += light.diffuse  * diff * attenuation;
-//    totalSpecular  += light.specular * spec * attenuation;
-//}
-
-// old.
-//void calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, inout vec3 totalDiffuse, inout vec3 totalSpecular, inout vec3 totalAmbient, float shadow)
-//{
-//    // diffuse shading
-//    float diff = max(dot(normal, -light.direction), 0.0);
-//
-//    // specular shading (Blinn-Phong)
-//    vec3 halfwayDir = normalize(-light.direction + viewDir);
-//    float spec = pow(max(dot(normal, halfwayDir), 0.0), specular.a * 8.);
-//
-//    // combine results
-//    totalAmbient += light.ambient;
-//    totalDiffuse += light.diffuse * diff * (1. - shadow);
-//    totalSpecular += light.specular * spec * (1. - shadow);
-//}
-
-// old.
-//void calcDirShadowLight(DirectionalShadowLight light, sampler2DShadow map, vec3 normal, vec3 viewDir, inout vec3 totalDiffuse, inout vec3 totalSpecular, inout vec3 totalAmbient)
-//{
-//    float shadow = 0.;
-//    if (useShadows == 1)
-//    {
-//        vec4 shadowMapCoords = light.shadowSpace * vec4(v_position, 1);
-//        shadowMapCoords = shadowMapCoords * .5 + .5;
-//        if (shadowMapCoords.x >= 0. && shadowMapCoords.x <= 1. && shadowMapCoords.y >= 0. && shadowMapCoords.y <= 1.)
-//        {
-//            shadow = 1. - texture(map, shadowMapCoords.xyz);
-//            // OpenGL will use the Z component to compare this fragment's depth to the depth on the shadow map
-//            // OpenGL will return a value between 0 and 1, based on how much shadow this fragment should have.
-//        }
-//    }
-//    calcDirLight(light.light, normal, viewDir, totalDiffuse, totalSpecular, totalAmbient, shadow);
-//}
-
 
 void main()
 {
@@ -302,6 +278,32 @@ void main()
 
         for (int i = 0; i < NR_OF_POINT_LIGHTS; i++)
             pointLightRadiance(pointLights[i], N, V, F0, Lo, roughness, metallic, albedo);
+    }
+    #endif
+
+    #if NR_OF_DIR_LIGHTS
+    {   // Directional lights without shadow
+
+        for (int i = 0; i < NR_OF_DIR_LIGHTS; i++)
+            dirLightRadiance(dirLights[i], N, V, F0, Lo, roughness, metallic, albedo, 0.f);
+    }
+    #endif
+
+    #if NR_OF_DIR_SHADOW_LIGHTS
+    {   // Directional lights WITH SHADOW
+
+        #if (NR_OF_DIR_SHADOW_LIGHTS >= 1)
+        dirShadowLightRadiance(dirShadowLights[0], N, V, F0, Lo, roughness, metallic, albedo, dirShadowMaps[0]);
+        #endif
+        #if (NR_OF_DIR_SHADOW_LIGHTS >= 2)
+        dirShadowLightRadiance(dirShadowLights[1], N, V, F0, Lo, roughness, metallic, albedo, dirShadowMaps[1]);
+        #endif
+        #if (NR_OF_DIR_SHADOW_LIGHTS >= 3)
+        dirShadowLightRadiance(dirShadowLights[2], N, V, F0, Lo, roughness, metallic, albedo, dirShadowMaps[2]);
+        #endif
+        #if (NR_OF_DIR_SHADOW_LIGHTS >= 4)
+        dirShadowLightRadiance(dirShadowLights[3], N, V, F0, Lo, roughness, metallic, albedo, dirShadowMaps[3]);
+        #endif
     }
     #endif
 

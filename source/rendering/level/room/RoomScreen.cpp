@@ -360,7 +360,10 @@ const int
 
     IRRADIANCE_MAP_TEX_UNIT = 3,
     PREFILTER_MAP_TEX_UNIT = 4,
-    BRDF_LUT_TEX_UNIT = 5;
+    BRDF_LUT_TEX_UNIT = 5,
+
+    FIRST_SHADOW_MAP_TEX_UNIT = 6;
+    // NOTE: shadow maps might also use 7, 8, and 9
 
 const char
     *DIFFUSE_UNI_NAME = "diffuseTexture",
@@ -449,8 +452,6 @@ void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, en
 
 void RoomScreen::initializeShader(const RenderContext &con, ShaderProgram &shader)
 {
-    int texSlot = 3;
-
     if (con.lights && con.uploadLightData)
     {
         auto plView = room->entities.view<Transform, PointLight>();
@@ -486,9 +487,7 @@ void RoomScreen::initializeShader(const RenderContext &con, ShaderProgram &shade
 
             glUniform3fv(shader.location((arrEl + ".position").c_str()), 1, &t.position[0]);
             glUniform3fv(shader.location((arrEl + ".attenuation").c_str()), 1, &vec3(pl.constant, pl.linear, pl.quadratic)[0]); // todo, point to pl.constant?
-            glUniform3fv(shader.location((arrEl + ".ambient").c_str()), 1, &pl.ambient[0]);
-            glUniform3fv(shader.location((arrEl + ".diffuse").c_str()), 1, &pl.diffuse[0]);
-            glUniform3fv(shader.location((arrEl + ".specular").c_str()), 1, &pl.specular[0]);
+            glUniform3fv(shader.location((arrEl + ".color").c_str()), 1, &pl.color[0]);
         });
 
         int dirLightI = 0;
@@ -500,9 +499,7 @@ void RoomScreen::initializeShader(const RenderContext &con, ShaderProgram &shade
             vec3 direction = transform * vec4(-mu::Y, 0);
 
             glUniform3fv(shader.location((arrEl + ".direction").c_str()), 1, &direction[0]);
-            glUniform3fv(shader.location((arrEl + ".ambient").c_str()), 1, &dl.ambient[0]);
-            glUniform3fv(shader.location((arrEl + ".diffuse").c_str()), 1, &dl.diffuse[0]);
-            glUniform3fv(shader.location((arrEl + ".specular").c_str()), 1, &dl.specular[0]);
+            glUniform3fv(shader.location((arrEl + ".color").c_str()), 1, &dl.color[0]);
         });
 
         int dirShadowLightI = 0;
@@ -514,12 +511,10 @@ void RoomScreen::initializeShader(const RenderContext &con, ShaderProgram &shade
             vec3 direction = transform * vec4(-mu::Y, 0);
 
             glUniform3fv(shader.location((arrEl + ".light.direction").c_str()), 1, &direction[0]);
-            glUniform3fv(shader.location((arrEl + ".light.ambient").c_str()), 1, &dl.ambient[0]);
-            glUniform3fv(shader.location((arrEl + ".light.diffuse").c_str()), 1, &dl.diffuse[0]);
-            glUniform3fv(shader.location((arrEl + ".light.specular").c_str()), 1, &dl.specular[0]);
+            glUniform3fv(shader.location((arrEl + ".light.color").c_str()), 1, &dl.color[0]);
 
             assert(sr.fbo != NULL && sr.fbo->depthTexture != NULL);
-            sr.fbo->depthTexture->bind(++texSlot, shader, ("dirShadowMaps[" + std::to_string(dirShadowLightI) + "]").c_str());
+            sr.fbo->depthTexture->bind(FIRST_SHADOW_MAP_TEX_UNIT + dirShadowLightI, shader, ("dirShadowMaps[" + std::to_string(dirShadowLightI) + "]").c_str());
             glUniformMatrix4fv(shader.location((arrEl + ".shadowSpace").c_str()), 1, GL_FALSE, &sr.shadowSpace[0][0]);
             dirShadowLightI++;
         });

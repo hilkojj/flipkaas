@@ -1,5 +1,5 @@
 
---loadRiggedModels("assets/models/cubeman.ubj", false)
+loadRiggedModels("assets/models/cubeman.glb", false)
 
 function create(player)
 

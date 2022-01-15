@@ -24,17 +24,8 @@ Room3D::Room3D()
     loadedRiggedMeshAttributes
         .add_(VertAttributes::JOINTS)
         .add_(VertAttributes::WEIGHTS);
-//        .add_(VertAttributes::BONE_WEIGHT_0)
-//        .add_(VertAttributes::BONE_WEIGHT_1)
-//        .add_(VertAttributes::BONE_WEIGHT_2)
-//        .add_(VertAttributes::BONE_WEIGHT_3);
 
     addSystem(new ArmatureAnimationSystem("Armature animations"));
-
-    GltfModelLoader loader(loadedRiggedMeshAttributes);
-    loader.fromBinaryFile("assets/models/cubeman.glb");
-    VertBuffer::uploadSingleMesh(loader.meshes.back());
-    auto &m = models["Cubeman"] = loader.models.back();
 }
 
 vec3 Room3D::getPosition(entt::entity e) const
@@ -196,28 +187,27 @@ bool Room3D::loadModels(const char *path, bool force, VertBuffer **vbPtr, const 
     if (!force && modelFileLoadTime.find(path) != modelFileLoadTime.end())
         return false;
 
-    std::unordered_map<Mesh *, bool> calculatedTangents;
+    GltfModelLoader loader(attrs);
 
-    for (auto &model : JsonModelLoader::fromUbjsonFile(path, &attrs))
+    if (stringEndsWith(path, ".glb"))
+        loader.fromBinaryFile(path);
+    else
+        loader.fromASCIIFile(path);
+
+    for (auto &mesh : loader.meshes)
     {
         if (!*vbPtr || (*vbPtr)->isUploaded())
             *vbPtr = VertBuffer::with(attrs);
 
-        models[model->name] = model;
-        for (auto &part : model->parts)
-        {
-            if (!part.mesh)
-                continue;
-            if (!calculatedTangents[part.mesh.get()])
-            {
-                for (int i = 0; i < part.mesh->parts.size(); i++)
-                    TangentCalculator::addTangentsToMesh(part.mesh, i);
-                calculatedTangents[part.mesh.get()] = true;
-            }
-            if (!part.mesh->vertBuffer)
-                (*vbPtr)->add(part.mesh);
-        }
+        assert(mesh->vertBuffer == NULL);
+        (*vbPtr)->add(mesh);
     }
+
+    for (auto &model : loader.models)
+    {
+        models[model->name] = model;
+    }
+
     modelFileLoadTime[path] = glfwGetTime();
     return true;
 }

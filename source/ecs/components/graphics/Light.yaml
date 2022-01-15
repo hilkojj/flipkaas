@@ -11,17 +11,13 @@ PointLight:
   linear: [float, 0.07]
   quadratic: [float, 0.017]
 
-  ambient: [vec3, vec3(0)]
-  diffuse: [vec3, vec3(1)]
-  specular: [vec3, vec3(1)]
+  color: [vec3, vec3(1)]
 
 SpotLight:
-  f
+  todo
 
 DirectionalLight:
-  ambient: [vec3, vec3(0)]
-  diffuse: [vec3, vec3(1)]
-  specular: [vec3, vec3(1)]
+  color: [vec3, vec3(1)]
 
 ShadowRenderer:
   visibilityMask: [uint, 1]
