@@ -1,3 +1,6 @@
 [submodule "external/dibidab-engine"]
 	path = external/dibidab-engine
 	url = https://github.com/dibidabidab/dibidab-engine.git
+[submodule "external/reactphysics3d"]
+	path = external/reactphysics3d
+	url = https://github.com/DanielChappuis/reactphysics3d.git

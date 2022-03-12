@@ -1,6 +1,7 @@
 /.idea/
 */.idea/*
 */cmake-build-debug/*
+CMakeSettings.json
 *.cbp
 imgui.ini
 settings.json

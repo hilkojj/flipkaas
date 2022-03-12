@@ -1,5 +1,5 @@
 
 Transform:
   position: vec3
-  rotation: quat
+  rotation: [quat, "quat(1, 0, 0, 0)"]
   scale: [vec3, vec3(1)]

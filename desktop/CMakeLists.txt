@@ -30,6 +30,10 @@ set_property(TARGET game PROPERTY CXX_STANDARD_REQUIRED ON)
 add_subdirectory(../external/dibidab-engine ./bin/dibidab-engine)
 target_link_libraries(game dibidab)
 
+# reactphysics3d:
+add_subdirectory(../external/reactphysics3d ./bin/reactphysics3d)
+target_link_libraries(game reactphysics3d)
+
 
 # ---Generate structs with LUA SERDE---
 

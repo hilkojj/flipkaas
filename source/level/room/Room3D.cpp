@@ -9,6 +9,7 @@
 #include "../../generated/Camera.hpp"
 #include "../../game/Game.h"
 #include "../../ecs/systems/ArmatureAnimationSystem.h"
+#include "../../ecs/systems/PhysicsSystem.h"
 
 Room3D::Room3D()
 {
@@ -26,6 +27,7 @@ Room3D::Room3D()
         .add_(VertAttributes::WEIGHTS);
 
     addSystem(new ArmatureAnimationSystem("Armature animations"));
+    addSystem(new PhysicsSystem("Physics"));
 }
 
 vec3 Room3D::getPosition(entt::entity e) const

@@ -31,6 +31,9 @@ GraphicsSettings:
 
   debugShadowBoxes: [bool, true]
   debugArmatures: [bool, true]
+  debugColliders: [bool, false]
+  debugColliderAABBs: [bool, false]
+  debugColliderContactPoints: [bool, false]
 
 KeyInputSettings:
   _flags:

@@ -16,9 +16,13 @@ Do `git submodule update --init --recursive` to clone submodules
 
 
 ##### Note for windows:
-After compiling, make sure you move `OpenAL32.dll` to the working directory (the game might not launch without). 
+After compiling, make sure you move `OpenAL32.dll` to the working directory (the game might not launch without).
 
 You can find it somewhere in `desktop/out/Release/bin/....` or in a similar directory (I hope Windows has a proper search function). 
+
+##### Note for Visual Studio:
+With the command line you can create a soft link to the assets folder, in case you can't change the working directory of the debugger.
+`mklink /D assets ..\..\..\..\..\assets\`
 
 ### Open in CLion
 - open `desktop/CMakeLists.txt`

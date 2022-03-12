@@ -1,0 +1,72 @@
+config:
+  fwd_decl:
+    - reactphysics3d::RigidBody
+    - reactphysics3d::Collider
+    - reactphysics3d::BoxShape
+    - reactphysics3d::SphereShape
+    - reactphysics3d::CapsuleShape
+    - reactphysics3d::ConvexShape
+    - reactphysics3d::ConcaveShape
+
+RigidBody:
+  dynamic: bool
+  gravity: [bool, true]
+  allowSleep: [bool, true]
+  angularDamping: float
+  linearDamping: float
+  mass: [float, 1] # kilograms
+  # todo: mass from collider mass density. See react docs
+  # todo: center of mass?
+  # todo: Inertia Tensor?
+
+  linearAxisFactor: [vec3, vec3(1)]
+  angularAxisFactor: [vec3, vec3(1)]
+
+  _hash: [dynamic, gravity, allowSleep, angularDamping, linearDamping, mass, linearAxisFactor.x, linearAxisFactor.y, linearAxisFactor.z, angularAxisFactor.x, angularAxisFactor.y, angularAxisFactor.z]
+
+  _cpp_only:
+    reactBody: [reactphysics3d::RigidBody *, NULL]
+    prevHash: [size_t, -1]
+  
+Collider:
+  rigidBodyEntity: [entt::entity, entt::null]
+
+  bounciness: float
+  frictionCoefficent: float
+
+  collisionCategoryBits: unsigned short
+  collideWithMaskBits: unsigned short
+
+  bodyOffsetTranslation: vec3
+  bodyOffsetRotation: [quat, "quat(1, 0, 0, 0)"]
+
+  _cpp_only:
+    prevRigidBodyEntity: [entt::entity, entt::null]
+    reactCollider: [reactphysics3d::Collider *, NULL]
+
+BoxColliderShape:
+  halfExtents: [vec3, vec3(1)]
+  _cpp_only:
+    shapeReact: [reactphysics3d::BoxShape *, NULL]
+
+SphereColliderShape:
+  radius: [float, 1]
+  _cpp_only:
+    shapeReact: [reactphysics3d::SphereShape *, NULL]
+
+CapsuleColliderShape:
+  sphereRadius: [float, 1]
+  sphereDistance: [float, 1]
+  _cpp_only:
+    shapeReact: [reactphysics3d::CapsuleShape *, NULL]
+
+ConvexColliderShape:
+  modelName: std::string
+  _cpp_only:
+    shapeReact: [reactphysics3d::ConvexShape *, NULL]
+
+ConcaveColliderShape:
+  modelName: std::string
+  _cpp_only:
+    shapeReact: [reactphysics3d::ConcaveShape *, NULL]
+
