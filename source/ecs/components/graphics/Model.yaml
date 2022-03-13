@@ -7,11 +7,7 @@ RenderModel:
   modelName: std::string
   visibilityMask: [uint, 1]
 
-PlayAnimation:
-  _flags:
-    - not_a_component
-    - json_with_keys
-
+PlayAnimation @not_a_component @json_with_keys:
   name: std::string
   loop: [bool, true]
   influence: [float, 1.]

@@ -1,17 +1,10 @@
 config:
   namespace: Game
 
-AudioSettings:
-  _flags:
-    - not_a_component
-    - json_with_keys
-
+AudioSettings @not_a_component @json_with_keys:
   masterVolume: [ float, 4. ]
 
-GraphicsSettings:
-  _flags:
-    - not_a_component
-    - json_with_keys
+GraphicsSettings @not_a_component @json_with_keys:
 
   imGuiFont: [string, "assets/fonts/ruda/Ruda-Bold.ttf"]
 
@@ -35,22 +28,23 @@ GraphicsSettings:
   debugColliderAABBs: [bool, false]
   debugColliderContactPoints: [bool, false]
 
-KeyInputSettings:
-  _flags:
-    - not_a_component
-    - json_with_keys
+KeyInputSettings @not_a_component @json_with_keys:
 
   retryLevel: [ KeyInput::Key, GLFW_KEY_R ]
   flyCamera: [ KeyInput::Key, GLFW_KEY_F9 ]
   stopFlyingCamera: [ KeyInput::Key, GLFW_KEY_ESCAPE ]
 
-Settings:
-  _flags:
-    - not_a_component
-    - json_with_keys
+PhysicsSettings @not_a_component @json_with_keys:
+  
+  logError: [bool, true]
+  logWarning: [bool, true]
+  logInfo: [bool, false]
+
+Settings @not_a_component @json_with_keys:
 
   graphics: GraphicsSettings
   audio: AudioSettings
   keyInput: KeyInputSettings
+  physicsSettings: PhysicsSettings
   customSettings: [ json, json::object() ]
   limitUpdatesPerSec: [ bool, false ]

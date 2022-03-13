@@ -61,7 +61,7 @@ function create(player)
             name = "headanim",
             influence = 1.
         })
-        component.RigidBody.getFor(player).gravity = true
+        component.RigidBody.getFor(player):dirty().gravity = true
     end)
 
 end
