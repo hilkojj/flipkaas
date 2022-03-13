@@ -102,27 +102,27 @@ void syncReactRigidBody(RigidBody &body)
     // something is dirty
     body.reactBody->setIsSleeping(false);	// enabling gravity for example has no effect if the body is sleeping.
 
-    if (body.undirt<&RigidBody::gravity>())
+    if (body.dirty<&RigidBody::gravity>())
         body.reactBody->enableGravity(body.gravity);
-    if (body.undirt<&RigidBody::linearDamping>())
+    if (body.dirty<&RigidBody::linearDamping>())
     {
         body.linearDamping = max(body.linearDamping, 0.f);
         body.reactBody->setLinearDamping(body.linearDamping);
     }
-    if (body.undirt<&RigidBody::angularDamping>())
+    if (body.dirty<&RigidBody::angularDamping>())
     {
         body.angularDamping = max(body.angularDamping, 0.f);
         body.reactBody->setAngularDamping(body.angularDamping);
     }
-    if (body.undirt<&RigidBody::allowSleep>())
+    if (body.dirty<&RigidBody::allowSleep>())
         body.reactBody->setIsAllowedToSleep(body.allowSleep);
-    if (body.undirt<&RigidBody::dynamic>())
+    if (body.dirty<&RigidBody::dynamic>())
         body.reactBody->setType(body.dynamic ? reactphysics3d::BodyType::DYNAMIC : reactphysics3d::BodyType::STATIC);
-    if (body.undirt<&RigidBody::mass>())
+    if (body.dirty<&RigidBody::mass>())
         body.reactBody->setMass(body.mass);
-    if (body.undirt<&RigidBody::angularAxisFactor>())
+    if (body.dirty<&RigidBody::angularAxisFactor>())
         body.reactBody->setAngularLockAxisFactor(reactphysics3d::Vector3(body.angularAxisFactor.x, body.angularAxisFactor.y, body.angularAxisFactor.z));
-    if (body.undirt<&RigidBody::linearAxisFactor>())
+    if (body.dirty<&RigidBody::linearAxisFactor>())
         body.reactBody->setLinearLockAxisFactor(reactphysics3d::Vector3(body.linearAxisFactor.x, body.linearAxisFactor.y, body.linearAxisFactor.z));
 
     body.undirtAll();
