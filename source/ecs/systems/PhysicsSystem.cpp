@@ -128,26 +128,22 @@ void syncReactRigidBody(RigidBody &body)
     body.undirtAll();
 }
 
+void wakeCollidersRigidBody(const Collider &collider, entt::registry &reg)
+{
+    if (reg.valid(collider.rigidBodyEntity))
+    {
+        if (auto body = reg.try_get<RigidBody>(collider.rigidBodyEntity))
+        {
+            if (body->reactBody)
+                body->reactBody->setIsSleeping(false);
+        }
+    }
+}
+
 void PhysicsSystem::update(double deltaTime, EntityEngine* room)
 {
-    {
-        gu::profiler::Zone z("ReactPhysics3D");
-        reactWorld->update(deltaTime);
-    }
-
-    room->entities.view<Transform, RigidBody>().each([&](auto e, Transform &transform, RigidBody &body) {
-
-        assert(body.reactBody);
-        
-        // copy body transform to entity transform:
-        reactToTransform(body.reactBody->getTransform(), transform);
-        
-        // sync component settings with react:
-        syncReactRigidBody(body);
-    });
-
     room->entities.view<Collider>().each([&](auto e, Collider &collider) {
-        
+
         if (collider.rigidBodyEntity != collider.prevRigidBodyEntity)
         {
             auto newRigidBody = collider.rigidBodyEntity;
@@ -160,6 +156,92 @@ void PhysicsSystem::update(double deltaTime, EntityEngine* room)
             onColliderAdded(room->entities, e);
         }
 
+        if (collider.anyDirty())
+        {
+            auto &material = collider.reactCollider->getMaterial();
+            if (collider.dirty<&Collider::bounciness>())
+            {
+                collider.bounciness = clamp(collider.bounciness, 0.f, 1.f);
+                material.setBounciness(collider.bounciness);
+            }
+            if (collider.dirty<&Collider::frictionCoefficent>())
+            {
+                collider.frictionCoefficent = max(0.f, collider.frictionCoefficent);
+                material.setFrictionCoefficient(collider.frictionCoefficent);
+            }
+
+            if (collider.dirty<&Collider::collisionCategoryBits>())
+                collider.reactCollider->setCollisionCategoryBits(collider.collisionCategoryBits);
+            if (collider.dirty<&Collider::collideWithMaskBits>())
+                collider.reactCollider->setCollideWithMaskBits(collider.collideWithMaskBits);
+
+            if (collider.dirty<&Collider::bodyOffsetTranslation>() || collider.dirty<&Collider::bodyOffsetRotation>())
+            {
+                reactphysics3d::Transform localToBody;
+                transformToReact(collider.bodyOffsetTranslation, collider.bodyOffsetRotation, localToBody);
+                collider.reactCollider->setLocalToBodyTransform(localToBody);
+            }
+            collider.undirtAll();
+        }
+    });
+    room->entities.view<BoxColliderShape, Collider>().each([&](BoxColliderShape &shape, Collider &collider) {
+        if (!shape.anyDirty() || !shape.shapeReact) return;
+
+        shape.shapeReact->setHalfExtents(reactphysics3d::Vector3(shape.halfExtents.x, shape.halfExtents.y, shape.halfExtents.z));
+
+        wakeCollidersRigidBody(collider, room->entities);
+        shape.undirtAll();
+    });
+    room->entities.view<SphereColliderShape, Collider>().each([&](SphereColliderShape &shape, Collider &collider) {
+        if (!shape.anyDirty() || !shape.shapeReact) return;
+
+        shape.radius = max(0.f, shape.radius);
+        shape.shapeReact->setRadius(shape.radius);
+        wakeCollidersRigidBody(collider, room->entities);
+        shape.undirtAll();
+    });
+    room->entities.view<CapsuleColliderShape, Collider>().each([&](CapsuleColliderShape &shape, Collider &collider) {
+        if (!shape.anyDirty() || !shape.shapeReact) return;
+
+        shape.sphereDistance = max(0.f, shape.sphereDistance);
+        shape.shapeReact->setHeight(shape.sphereDistance);
+        shape.sphereRadius = max(0.f, shape.sphereRadius);
+        shape.shapeReact->setRadius(shape.sphereRadius);
+        wakeCollidersRigidBody(collider, room->entities);
+        shape.undirtAll();
+    });
+
+    {
+        gu::profiler::Zone z("ReactPhysics3D");
+        reactWorld->update(deltaTime);
+    }
+
+    room->entities.view<Transform, RigidBody>().each([](auto e, Transform &transform, RigidBody &body) {
+
+        assert(body.reactBody);
+        
+        // copy body transform to entity transform:
+        if (body.allowExternalTransform)
+        {
+            auto posDiff = transform.position - body.prevPosition;
+            auto rotDiff = transform.rotation - body.prevRotation;
+
+            reactToTransform(body.reactBody->getTransform(), transform);
+
+            transform.position += posDiff;
+            transform.rotation += rotDiff;
+
+            reactphysics3d::Transform t;
+            transformToReact(transform, t);
+            body.reactBody->setTransform(t);
+
+            body.prevPosition = transform.position;
+            body.prevRotation = transform.rotation;
+        }
+        else reactToTransform(body.reactBody->getTransform(), transform);
+
+        // sync component settings with react:
+        syncReactRigidBody(body);
     });
 }
 
@@ -196,10 +278,16 @@ void PhysicsSystem::onRigidBodyAdded(entt::registry &reg, entt::entity e)
 {
     reactphysics3d::Transform reactTransform;
 
-    if (auto transform = reg.try_get<Transform>(e))
-        transformToReact(*transform, reactTransform);
-
     auto &body = reg.get<RigidBody>(e);
+
+    if (auto transform = reg.try_get<Transform>(e))
+    {
+        transformToReact(*transform, reactTransform);
+        body.prevPosition = transform->position;
+        body.prevRotation = transform->rotation;
+    }
+
+
     body.reactBody = reactWorld->createRigidBody(reactTransform);
 
     if (auto has = reg.try_get<HasColliders>(e))
@@ -239,6 +327,7 @@ void onShapeAdded(entt::registry &reg, entt::entity e, reactphysics3d::Collision
 
     collider->reactCollider = rigidBody->reactBody->addCollider(shape, reactTransform);
     setColliderUserData(collider->reactCollider, e);
+    collider->bedirtAll();
 }
 
 void PhysicsSystem::onBoxAdded(entt::registry &reg, entt::entity e)
@@ -288,6 +377,7 @@ void onShapeRemoved(entt::registry &reg, entt::entity e, reactphysics3d::Collisi
             assert(rigidBody->reactBody);
             rigidBody->reactBody->removeCollider(collider->reactCollider);
             collider->reactCollider = NULL;
+            rigidBody->reactBody->setIsSleeping(false);
         }
     }
 }
@@ -339,11 +429,14 @@ void PhysicsSystem::onColliderRemoved(entt::registry &reg, entt::entity e)
         collider.reactCollider->getBody()->removeCollider(collider.reactCollider);
         collider.reactCollider = NULL;
     }
+    wakeCollidersRigidBody(collider, reg);
 }
 
 void PhysicsSystem::onColliderAdded(entt::registry &reg, entt::entity e)
 {
     auto &collider = reg.get<Collider>(e);
+    collider.bedirtAll();
+    collider.prevRigidBodyEntity = collider.rigidBodyEntity;
     if (reg.valid(collider.rigidBodyEntity))
     {
         auto &has = reg.get_or_assign<HasColliders>(collider.rigidBodyEntity);

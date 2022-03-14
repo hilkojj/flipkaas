@@ -26,28 +26,16 @@ function create(player)
             gravity = false
         },
         Collider {
-            rigidBodyEntity = player
+            rigidBodyEntity = player,
+            bounciness = .5,
+            bodyOffsetTranslation = vec3(0, 2, 0)
         },
-        BoxColliderShape {
-
+        CapsuleColliderShape {
+            sphereRadius = .8,
+            sphereDistance = 2.5
+            
         },
         Inspecting()
-    })
-
-    local testFloor = createEntity()
-    setComponents(testFloor, {
-        Transform {
-            position = vec3(0, 0, 0)
-        },
-        RigidBody {
-            dynamic = false
-        },
-        Collider {
-            rigidBodyEntity = testFloor
-        },
-        BoxColliderShape {
-            halfExtents = vec3(100, 1, 100)
-        },
     })
 
     onEntityEvent(player, "AnimationFinished", function(anim, unsub)

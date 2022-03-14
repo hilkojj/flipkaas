@@ -22,8 +22,12 @@ RigidBody @dirtyable:
   linearAxisFactor: [vec3, vec3(1)]
   angularAxisFactor: [vec3, vec3(1)]
 
+  allowExternalTransform: [bool, true] # only disable for performance reasons?
+
   _cpp_only:
     reactBody: [reactphysics3d::RigidBody *, NULL]
+    prevPosition: [vec3, vec3()]
+    prevRotation: [quat, "quat(1, 0, 0, 0)"]
   
 Collider @dirtyable:
   rigidBodyEntity: [entt::entity, entt::null]
@@ -31,8 +35,8 @@ Collider @dirtyable:
   bounciness: float
   frictionCoefficent: float
 
-  collisionCategoryBits: uint16
-  collideWithMaskBits: uint16
+  collisionCategoryBits: [uint16, 1u]
+  collideWithMaskBits: [uint16, 1u]
 
   bodyOffsetTranslation: vec3
   bodyOffsetRotation: [quat, "quat(1, 0, 0, 0)"]
