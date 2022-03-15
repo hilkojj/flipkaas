@@ -1,4 +1,7 @@
 
+#ifndef GAME_REACTPHYSICSRENDERER_H
+#define GAME_REACTPHYSICSRENDERER_H
+
 #include <reactphysics3d/reactphysics3d.h>
 #include <graphics/camera.h>
 #include <graphics/shader_asset.h>
@@ -20,3 +23,5 @@ class ReactPhysicsRenderer
 
 
 };
+
+#endif

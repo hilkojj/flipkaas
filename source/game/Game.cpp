@@ -8,15 +8,15 @@ Game::Settings Game::settings;
 
 void setShaderDefinitions()
 {
-    ShaderDefinitions::defineFloat("GAMMA", Game::settings.graphics.gammaCorrection);
-    ShaderDefinitions::defineInt("SHADOWS", Game::settings.graphics.shadows);
-    ShaderDefinitions::defineInt("MAX_BONES", Game::settings.graphics.maxArmatureBones);
-    ShaderDefinitions::defineInt("BLOOM", Game::settings.graphics.bloomBlurIterations);
-    ShaderDefinitions::defineFloat("BLOOM_THRESHOLD", Game::settings.graphics.bloomThreshold);
-    ShaderDefinitions::defineFloat("FOG_START", Game::settings.graphics.fogStart);
-    ShaderDefinitions::defineFloat("FOG_END", Game::settings.graphics.fogEnd);
-    ShaderDefinitions::defineInt("FOG", Game::settings.graphics.fogEnabled);
-    ShaderDefinitions::define("PREFILTER_SAMPLE_COUNT", std::to_string(Game::settings.graphics.prefilteredReflectionMapSamples) + "u");
+    ShaderDefinitions::global().defineFloat("GAMMA", Game::settings.graphics.gammaCorrection);
+    ShaderDefinitions::global().defineInt("SHADOWS", Game::settings.graphics.shadows);
+    ShaderDefinitions::global().defineInt("MAX_BONES", Game::settings.graphics.maxArmatureBones);
+    ShaderDefinitions::global().defineInt("BLOOM", Game::settings.graphics.bloomBlurIterations);
+    ShaderDefinitions::global().defineFloat("BLOOM_THRESHOLD", Game::settings.graphics.bloomThreshold);
+    ShaderDefinitions::global().defineFloat("FOG_START", Game::settings.graphics.fogStart);
+    ShaderDefinitions::global().defineFloat("FOG_END", Game::settings.graphics.fogEnd);
+    ShaderDefinitions::global().defineInt("FOG", Game::settings.graphics.fogEnabled);
+    ShaderDefinitions::global().define("PREFILTER_SAMPLE_COUNT", std::to_string(Game::settings.graphics.prefilteredReflectionMapSamples) + "u");
 }
 
 void Game::loadSettings()

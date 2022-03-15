@@ -30,9 +30,15 @@ GraphicsSettings @not_a_component @json_with_keys:
 
 KeyInputSettings @not_a_component @json_with_keys:
 
-  retryLevel: [ KeyInput::Key, GLFW_KEY_R ]
   flyCamera: [ KeyInput::Key, GLFW_KEY_F9 ]
+  retryLevel: [ KeyInput::Key, GLFW_KEY_F10 ]
   stopFlyingCamera: [ KeyInput::Key, GLFW_KEY_ESCAPE ]
+
+  gizmoNeedCtrl: [bool, true]
+  gizmoToggleLocal: [KeyInput::Key, GLFW_KEY_L]
+  gizmoTranslate: [KeyInput::Key, GLFW_KEY_T]
+  gizmoRotate: [KeyInput::Key, GLFW_KEY_R]
+  gizmoScale: [KeyInput::Key, GLFW_KEY_S]
 
 PhysicsSettings @not_a_component @json_with_keys:
   

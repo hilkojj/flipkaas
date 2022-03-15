@@ -8,10 +8,14 @@
 #include "../../../generated/Camera.hpp"
 #include "../../../generated/Model.hpp"
 #include "../../../generated/Light.hpp"
+#include "../../../generated/Physics.hpp"
 #include "../../../game/Game.h"
 #include "EnvironmentMap.h"
 #include "ReactPhysicsRenderer.h"
 #include "../../../ecs/systems/PhysicsSystem.h"
+
+#include <generated/Inspecting.hpp>
+#include <im3d.h>
 
 const GLubyte dummyTexData[] = {0, 0, 0};
 
@@ -179,7 +183,7 @@ void RoomScreen::render(double deltaTime)
 
     glEnable(GL_DEPTH_TEST);
 
-    renderDebugStuff();
+    renderDebugStuff(deltaTime);
 }
 
 void RoomScreen::onResize()
@@ -209,7 +213,7 @@ void RoomScreen::onResize()
 
 int debugTextI = 0;
 
-void RoomScreen::renderDebugStuff()
+void RoomScreen::renderDebugStuff(double deltaTime)
 {
     if (!dibidab::settings.showDeveloperOptions)
         return;
@@ -271,6 +275,21 @@ void RoomScreen::renderDebugStuff()
         if (reactWorld)
             reactPhysicsRenderer->render(*reactWorld, cam);
     }
+
+    gizmoRenderer.beginFrame(deltaTime, vec2(gu::width, gu::height), cam);
+
+    room->entities.view<Transform, Inspecting>().each([&](auto e, auto &t, auto) {
+        
+        if (gizmoRenderer.gizmo(("entity_gizmo_" + std::to_string(int(e))).c_str(), t.position, t.rotation, t.scale))
+        {
+            if (RigidBody *rigidBody = room->entities.try_get<RigidBody>(e))
+            {
+                rigidBody->reactBody->setIsSleeping(true);
+            }
+        }
+    });
+
+    gizmoRenderer.endFrame(cam);
 
     inspector.drawGUI(&cam, lineRenderer);
 
@@ -503,7 +522,7 @@ void RoomScreen::initializeShader(const RenderContext &con, ShaderProgram &shade
         int nrOfPointLights = plView.size();
         if (nrOfPointLights != prevNrOfPointLights)
         {
-            ShaderDefinitions::defineInt("NR_OF_POINT_LIGHTS", nrOfPointLights);
+            ShaderDefinitions::global().defineInt("NR_OF_POINT_LIGHTS", nrOfPointLights);
             prevNrOfPointLights = nrOfPointLights;
         }
 
@@ -511,7 +530,7 @@ void RoomScreen::initializeShader(const RenderContext &con, ShaderProgram &shade
         int nrOfDirLights = dlView.size();
         if (nrOfDirLights != prevNrOfDirLights)
         {
-            ShaderDefinitions::defineInt("NR_OF_DIR_LIGHTS", nrOfDirLights);
+            ShaderDefinitions::global().defineInt("NR_OF_DIR_LIGHTS", nrOfDirLights);
             prevNrOfDirLights = nrOfDirLights;
         }
 
@@ -519,7 +538,7 @@ void RoomScreen::initializeShader(const RenderContext &con, ShaderProgram &shade
         int nrOfDirShadowLights = dShadowLView.size();
         if (nrOfDirShadowLights != prevNrOfDirShadowLights)
         {
-            ShaderDefinitions::defineInt("NR_OF_DIR_SHADOW_LIGHTS", nrOfDirShadowLights);
+            ShaderDefinitions::global().defineInt("NR_OF_DIR_SHADOW_LIGHTS", nrOfDirShadowLights);
             prevNrOfDirShadowLights = nrOfDirShadowLights;
         }
 

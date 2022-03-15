@@ -27,6 +27,13 @@ target_link_libraries(game dibidab)
 add_subdirectory(../external/reactphysics3d ./bin/reactphysics3d)
 target_link_libraries(game reactphysics3d)
 
+# im3d:
+add_compile_definitions(IM3D_CONFIG="../../source/rendering/level/room/im3d_config.h")
+add_library(im3d ../external/im3d/im3d.h ../external/im3d/im3d_math.h ../external/im3d/im3d.cpp)
+target_include_directories(im3d PUBLIC ../external/im3d/)
+target_link_libraries(im3d glm)
+target_link_libraries(game im3d)
+
 # ---Generate structs with LUA SERDE---
 
 add_custom_target(

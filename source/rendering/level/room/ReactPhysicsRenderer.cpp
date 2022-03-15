@@ -16,7 +16,9 @@ void ReactPhysicsRenderer::render(reactphysics3d::PhysicsWorld &reactWorld, cons
 
 	glDisable(GL_CULL_FACE);
 
+	#ifndef EMSCRIPTEN
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	#endif
 
 	auto nrOfTriVerts = theOtherRenderer.getNbTriangles() * 3;
 	auto nrOfLineVerts = theOtherRenderer.getNbLines() * 2;
@@ -65,6 +67,8 @@ void ReactPhysicsRenderer::render(reactphysics3d::PhysicsWorld &reactWorld, cons
 		lines->renderArrays(GL_LINES, nrOfLineVerts);
 	}
 
+	#ifndef EMSCRIPTEN
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	#endif
 	glEnable(GL_CULL_FACE);
 }

@@ -10,6 +10,7 @@
 #include <graphics/frame_buffer.h>
 #include <graphics/cube_map.h>
 #include "EntityInspector3D.h"
+#include "GizmoRenderer.h"
 #include "../../../level/room/Room3D.h"
 
 struct RenderModel;
@@ -36,6 +37,7 @@ class RoomScreen : public Screen
     bool showRoomEditor = false;
 
     DebugLineRenderer lineRenderer;
+    GizmoRenderer gizmoRenderer;
 
     EntityInspector3D inspector;
 
@@ -63,7 +65,7 @@ class RoomScreen : public Screen
 
     void onResize() override;
 
-    void renderDebugStuff();
+    void renderDebugStuff(double deltaTime);
 
     ~RoomScreen() override;
 

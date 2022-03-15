@@ -3,7 +3,7 @@
 
 void EntityInspector3D::pickEntityGUI(const Camera *camera, DebugLineRenderer &renderer)
 {
-
+    pickEntity = false;
 }
 
 void EntityInspector3D::moveEntityGUI(const Camera *camera, DebugLineRenderer &renderer)
