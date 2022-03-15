@@ -277,21 +277,8 @@ void RoomScreen::renderDebugStuff(double deltaTime)
     }
 
     gizmoRenderer.beginFrame(deltaTime, vec2(gu::width, gu::height), cam);
-
-    room->entities.view<Transform, Inspecting>().each([&](auto e, auto &t, auto) {
-        
-        if (gizmoRenderer.gizmo(("entity_gizmo_" + std::to_string(int(e))).c_str(), t.position, t.rotation, t.scale))
-        {
-            if (RigidBody *rigidBody = room->entities.try_get<RigidBody>(e))
-            {
-                rigidBody->reactBody->setIsSleeping(true);
-            }
-        }
-    });
-
+    inspector.drawGUI(&cam, lineRenderer, gizmoRenderer);
     gizmoRenderer.endFrame(cam);
-
-    inspector.drawGUI(&cam, lineRenderer);
 
     ImGui::BeginMainMenuBar();
 

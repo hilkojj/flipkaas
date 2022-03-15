@@ -5,12 +5,21 @@
 	#error No shader stage defined
 #endif
 
+#ifdef WEBGL	
+#define VertexData \
+	_VertexData { \
+		float m_edgeDistance; \
+		float m_size; \
+		vec4 m_color; \
+	}
+#else
 #define VertexData \
 	_VertexData { \
 		noperspective float m_edgeDistance; \
 		noperspective float m_size; \
 		smooth vec4 m_color; \
 	}
+#endif
 
 #define kAntialiasing 2.0
 

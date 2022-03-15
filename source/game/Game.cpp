@@ -17,6 +17,9 @@ void setShaderDefinitions()
     ShaderDefinitions::global().defineFloat("FOG_END", Game::settings.graphics.fogEnd);
     ShaderDefinitions::global().defineInt("FOG", Game::settings.graphics.fogEnabled);
     ShaderDefinitions::global().define("PREFILTER_SAMPLE_COUNT", std::to_string(Game::settings.graphics.prefilteredReflectionMapSamples) + "u");
+    #ifdef EMSCRIPTEN
+    ShaderDefinitions::global().define("WEBGL");
+    #endif
 }
 
 void Game::loadSettings()
