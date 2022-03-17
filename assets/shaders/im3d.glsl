@@ -5,21 +5,69 @@
 	#error No shader stage defined
 #endif
 
-#ifdef WEBGL	
-#define VertexData \
-	_VertexData { \
-		float m_edgeDistance; \
-		float m_size; \
-		vec4 m_color; \
+#ifdef WEBGL
+
+#define kAntialiasing 2.0
+
+#ifdef VERTEX_SHADER
+	uniform mat4 uViewProjMatrix;
+	
+	layout(location=0) in vec4 aPositionSize;
+	layout(location=1) in vec4 aColor;
+	
+	out float m_edgeDistance;
+	out float m_size;
+	out vec4 m_color;
+	
+	void main() 
+	{
+		m_color = aColor.abgr; // swizzle to correct endianness
+		#if !defined(TRIANGLES)
+			m_color.a *= smoothstep(0.0, 1.0, aPositionSize.w / kAntialiasing);
+		#endif
+		m_size = max(aPositionSize.w, kAntialiasing);
+		gl_Position = uViewProjMatrix * vec4(aPositionSize.xyz, 1.0);
+		#if defined(POINTS)
+			gl_PointSize = m_size;
+		#endif
 	}
-#else
+#endif
+
+#ifdef FRAGMENT_SHADER
+	precision mediump float;
+	
+	in float m_edgeDistance;
+	in float m_size;
+	in vec4 m_color;
+	
+	layout(location=0) out vec4 fResult;
+	
+	void main() 
+	{
+		fResult = m_color;
+		
+		#if   defined(LINES)
+			float d = abs(m_edgeDistance) / m_size;
+			d = smoothstep(1.0, 1.0 - (kAntialiasing / m_size), d);
+			fResult.a *= d;
+			
+		#elif defined(POINTS)
+			float d = length(gl_PointCoord.xy - vec2(0.5));
+			d = smoothstep(0.5, 0.5 - (kAntialiasing / m_size), d);
+			fResult.a *= d;
+			
+		#endif		
+	}
+#endif
+
+#else	// Desktop:
+
 #define VertexData \
 	_VertexData { \
 		noperspective float m_edgeDistance; \
 		noperspective float m_size; \
 		smooth vec4 m_color; \
 	}
-#endif
 
 #define kAntialiasing 2.0
 
@@ -95,6 +143,8 @@
 #endif
 
 #ifdef FRAGMENT_SHADER
+	precision mediump float;
+	
 	in VertexData vData;
 	
 	layout(location=0) out vec4 fResult;
@@ -115,4 +165,6 @@
 			
 		#endif		
 	}
+#endif
+
 #endif

@@ -57,6 +57,13 @@ void Room3D::initializeLuaEnvironment()
     luaEnvironment["loadRiggedModels"] = [&] (const char *path, bool force) {
         loadModels(path, force, &uploadingRiggedTo, loadedRiggedMeshAttributes);
     };
+    luaEnvironment["loadColliderMeshes"] = [&](const char *path, bool force, bool convex) {
+        if (auto ps = tryFindSystem<PhysicsSystem>())
+        {
+            return ps->loadColliderMeshesFromGLTF(path, force, convex);
+        }
+        else throw gu_err("This room does not have a " + std::string(typeid(PhysicsSystem).name()));
+    };
     luaEnvironment["project"] = [&] (const vec3 &pos) {
         if (!camera)
             return sol::optional<ivec2>();

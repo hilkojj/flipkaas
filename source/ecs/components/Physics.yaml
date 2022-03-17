@@ -5,8 +5,8 @@ config:
     - reactphysics3d::BoxShape
     - reactphysics3d::SphereShape
     - reactphysics3d::CapsuleShape
-    - reactphysics3d::ConvexShape
-    - reactphysics3d::ConcaveShape
+    - reactphysics3d::ConvexMeshShape
+    - reactphysics3d::ConcaveMeshShape
 
 RigidBody @dirtyable:
   dynamic: bool
@@ -62,12 +62,12 @@ CapsuleColliderShape @dirtyable:
     shapeReact: [reactphysics3d::CapsuleShape *, NULL]
 
 ConvexColliderShape @dirtyable:
-  modelName: std::string
+  meshName: std::string
   _cpp_only:
-    shapeReact: [reactphysics3d::ConvexShape *, NULL]
+    shapeReact: [reactphysics3d::ConvexMeshShape *, NULL]
 
 ConcaveColliderShape @dirtyable:
-  modelName: std::string
+  meshName: std::string
   _cpp_only:
-    shapeReact: [reactphysics3d::ConcaveShape *, NULL]
+    shapeReact: [reactphysics3d::ConcaveMeshShape *, NULL]
 

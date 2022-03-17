@@ -4,6 +4,7 @@
 
 #include <ecs/systems/EntitySystem.h>
 #include <reactphysics3d/reactphysics3d.h>
+#include <forward_list>
 #include "../../level/room/Room3D.h"
 
 class PhysicsSystem : public EntitySystem
@@ -16,14 +17,25 @@ public:
         return reactWorld;
     }
 
+    bool loadColliderMeshesFromGLTF(const char *path, bool force = false, bool convex = false);
+
 protected:
     void init(EntityEngine* engine) override;
 
     void update(double deltaTime, EntityEngine* engine) override;
 
+    virtual ~PhysicsSystem();
+
 private:
     reactphysics3d::PhysicsCommon reactCommon;
     reactphysics3d::PhysicsWorld *reactWorld = NULL;
+    std::unordered_map<std::string, long> modelFileLoadTime;
+    std::unordered_map<std::string, SharedMesh> colliderMeshes;
+    std::unordered_map<std::string, reactphysics3d::ConcaveMeshShape *> reactConcaveMeshes;
+    std::unordered_map<std::string, reactphysics3d::ConvexMeshShape *> reactConvexMeshes;
+    std::vector<reactphysics3d::TriangleVertexArray *> reactTris;
+    std::vector<reactphysics3d::PolygonVertexArray *> reactPolys;
+    std::forward_list<std::vector<reactphysics3d::PolygonVertexArray::PolygonFace>> polygonFaces;
 
     void onRigidBodyRemoved(entt::registry &, entt::entity);
     void onRigidBodyAdded(entt::registry &, entt::entity);

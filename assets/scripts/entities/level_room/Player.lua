@@ -1,8 +1,9 @@
 
 loadRiggedModels("assets/models/cubeman.glb", false)
+loadColliderMeshes("assets/models/test_concave_colliders.glb", false, false)
+loadColliderMeshes("assets/models/test_convex_colliders.glb", false, true)
 
 function create(player)
-
     setName(player, "player")
 
     setComponents(player, {
@@ -34,6 +35,9 @@ function create(player)
             sphereRadius = .8,
             sphereDistance = 2.5
             
+        },
+        ConcaveColliderShape {
+            meshName = "Suzanne"
         },
         Inspecting()
     })

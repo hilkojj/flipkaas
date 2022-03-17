@@ -2,6 +2,7 @@
 #include "../../generated/Physics.hpp"
 #include "../../game/Game.h"
 #include <set>
+#include <utils/gltf_model_loader.h>
 
 void PhysicsSystem::init(EntityEngine* engine)
 {
@@ -26,9 +27,6 @@ void PhysicsSystem::init(EntityEngine* engine)
 
     updateFrequency = 60;
 
-    std::cerr << "disable reactphysics debug mode in release builds" << std::endl;
-
-    // todo: if system is removed, these functions should be disconnected:
     engine->entities.on_destroy<RigidBody>()				.connect<&PhysicsSystem::onRigidBodyRemoved>(this);
     engine->entities.on_replace<RigidBody>()				.connect<&PhysicsSystem::onRigidBodyRemoved>(this);
     engine->entities.on_construct<RigidBody>()				.connect<&PhysicsSystem::onRigidBodyAdded>(this);
@@ -62,6 +60,103 @@ void PhysicsSystem::init(EntityEngine* engine)
     engine->entities.on_construct<Collider>()				.connect<&PhysicsSystem::onColliderAdded>(this);
 
     // todo/note: replacing components is not supported by the lua api, however, if done from C++, things like colliders probably wont be added.
+}
+
+
+bool PhysicsSystem::loadColliderMeshesFromGLTF(const char *path, bool force, bool convex)
+{
+    if (!force && modelFileLoadTime.find(path) != modelFileLoadTime.end())
+        return false;
+
+    GltfModelLoader loader(VertAttributes().add_(VertAttributes::POSITION));
+
+    if (stringEndsWith(path, ".glb"))
+        loader.fromBinaryFile(path);
+    else
+        loader.fromASCIIFile(path);
+
+    for (auto &mesh : loader.meshes)
+        colliderMeshes[mesh->name] = mesh;
+
+    if (!convex)
+    {
+        for (auto &mesh : loader.meshes)
+        {
+            auto triMesh = reactCommon.createTriangleMesh();
+
+            for (auto &part : mesh->parts)
+            {
+                if (mesh->vertices.empty())
+                    continue;
+
+                if (part.indices.empty())
+                    continue;
+
+                reactphysics3d::TriangleVertexArray *tris = new reactphysics3d::TriangleVertexArray(
+                    mesh->nrOfVertices(),
+                    &mesh->vertices.at(0),
+                    VertAttributes::POSITION.byteSize,
+                    part.indices.size() / 3,
+                    &part.indices.at(0),
+                    3 * sizeof(unsigned short),
+                    reactphysics3d::TriangleVertexArray::VertexDataType::VERTEX_FLOAT_TYPE,
+                    reactphysics3d::TriangleVertexArray::IndexDataType::INDEX_SHORT_TYPE
+                );
+                reactTris.push_back(tris);
+                triMesh->addSubpart(tris);
+            }
+
+            reactConcaveMeshes[mesh->name] = reactCommon.createConcaveMeshShape(triMesh);
+        }
+    }
+    else
+    {
+        for (auto &mesh : loader.meshes)
+        {
+            if (mesh->vertices.empty())
+                continue;
+            if (mesh->parts.empty())
+                continue;
+            auto &part = mesh->parts[0];
+            if (part.indices.empty())
+                continue;
+
+            auto &faces = polygonFaces.emplace_front();
+            faces.reserve(part.indices.size() / 3);
+
+            for (uint i = 0; i < part.indices.size(); i += 3)
+            {
+                faces.emplace_back();
+                faces.back().indexBase = i;
+                faces.back().nbVertices = 3;
+            }
+
+            auto polys = new reactphysics3d::PolygonVertexArray(
+                mesh->nrOfVertices(),
+                &mesh->vertices.at(0),
+                VertAttributes::POSITION.byteSize,
+                &part.indices.at(0),
+                sizeof(unsigned short),
+                faces.size(),
+                &faces.at(0),
+                reactphysics3d::PolygonVertexArray::VertexDataType::VERTEX_FLOAT_TYPE,
+                reactphysics3d::PolygonVertexArray::IndexDataType::INDEX_SHORT_TYPE
+            );
+            auto polyMesh = reactCommon.createPolyhedronMesh(polys);
+            reactConvexMeshes[mesh->name] = reactCommon.createConvexMeshShape(polyMesh);
+        }
+    }
+
+    modelFileLoadTime[path] = glfwGetTime();
+    return true;
+}
+
+PhysicsSystem::~PhysicsSystem()
+{
+    for (auto tris : reactTris)
+        delete tris;
+    for (auto polys : reactPolys)
+        delete polys;
 }
 
 void transformToReact(const vec3 &translate, const quat &rotate, reactphysics3d::Transform &out)
@@ -156,7 +251,7 @@ void PhysicsSystem::update(double deltaTime, EntityEngine* room)
             onColliderAdded(room->entities, e);
         }
 
-        if (collider.anyDirty())
+        if (collider.anyDirty() && collider.reactCollider)
         {
             auto &material = collider.reactCollider->getMaterial();
             if (collider.dirty<&Collider::bounciness>())
@@ -207,6 +302,30 @@ void PhysicsSystem::update(double deltaTime, EntityEngine* room)
         shape.shapeReact->setHeight(shape.sphereDistance);
         shape.sphereRadius = max(0.f, shape.sphereRadius);
         shape.shapeReact->setRadius(shape.sphereRadius);
+        wakeCollidersRigidBody(collider, room->entities);
+        shape.undirtAll();
+    });
+    room->entities.view<ConvexColliderShape, Collider>().each([&](auto e, ConvexColliderShape &shape, Collider &collider) {
+        if (!shape.anyDirty()) return;
+
+        if (shape.dirty<&ConvexColliderShape::meshName>())
+        {
+            onConvexRemoved(room->entities, e);
+            onConvexAdded(room->entities, e);
+        }
+
+        wakeCollidersRigidBody(collider, room->entities);
+        shape.undirtAll();
+    });
+    room->entities.view<ConcaveColliderShape, Collider>().each([&](auto e, ConcaveColliderShape &shape, Collider &collider) {
+        if (!shape.anyDirty()) return;
+
+        if (shape.dirty<&ConcaveColliderShape::meshName>())
+        {
+            onConcaveRemoved(room->entities, e);
+            onConcaveAdded(room->entities, e);
+        }
+
         wakeCollidersRigidBody(collider, room->entities);
         shape.undirtAll();
     });
@@ -334,7 +453,7 @@ void PhysicsSystem::onBoxAdded(entt::registry &reg, entt::entity e)
 {
     auto &box = reg.get<BoxColliderShape>(e);
     if (!box.shapeReact)
-        box.shapeReact = reactCommon.createBoxShape(reactphysics3d::Vector3(box.halfExtents.x, box.halfExtents.y, box.halfExtents.z));	// todo: half extents or full?
+        box.shapeReact = reactCommon.createBoxShape(reactphysics3d::Vector3(box.halfExtents.x, box.halfExtents.y, box.halfExtents.z));
 
     onShapeAdded(reg, e, box.shapeReact);
 }
@@ -359,26 +478,51 @@ void PhysicsSystem::onCapsuleAdded(entt::registry &reg, entt::entity e)
 
 void PhysicsSystem::onConvexAdded(entt::registry &reg, entt::entity e)
 {
+    auto &convex = reg.get<ConvexColliderShape>(e);
+    
+    if (!convex.shapeReact)
+    {
+        auto it = reactConvexMeshes.find(convex.meshName);
+        if (it != reactConvexMeshes.end())
+        {
+            convex.shapeReact = it->second;
+            onShapeAdded(reg, e, convex.shapeReact);
+        }
+    }
 }
 
 void PhysicsSystem::onConcaveAdded(entt::registry &reg, entt::entity e)
 {
+    auto &concave = reg.get<ConcaveColliderShape>(e);
+    
+    if (!concave.shapeReact)
+    {
+        auto it = reactConcaveMeshes.find(concave.meshName);
+        if (it != reactConcaveMeshes.end())
+        {
+            concave.shapeReact = it->second;
+            onShapeAdded(reg, e, concave.shapeReact);
+        }
+    }
 }
 
 void onShapeRemoved(entt::registry &reg, entt::entity e, reactphysics3d::CollisionShape *shape)
 {
     // remove reactCollider if box is in use:
     auto collider = reg.try_get<Collider>(e);
-    if (collider && collider->reactCollider && collider->reactCollider->getCollisionShape() == shape && reg.valid(collider->rigidBodyEntity))
+    if (collider && collider->reactCollider)
     {
-        auto rigidBody = reg.try_get<RigidBody>(collider->rigidBodyEntity);
-        if (rigidBody)
+        if (collider->reactCollider->getCollisionShape() == shape && reg.valid(collider->rigidBodyEntity))
         {
-            assert(rigidBody->reactBody);
-            rigidBody->reactBody->removeCollider(collider->reactCollider);
-            collider->reactCollider = NULL;
-            rigidBody->reactBody->setIsSleeping(false);
+            auto rigidBody = reg.try_get<RigidBody>(collider->rigidBodyEntity);
+            if (rigidBody)
+            {
+                assert(rigidBody->reactBody);
+                rigidBody->reactBody->removeCollider(collider->reactCollider);
+                rigidBody->reactBody->setIsSleeping(false);
+            }
         }
+        collider->reactCollider = NULL;
     }
 }
 
@@ -406,12 +550,20 @@ void PhysicsSystem::onCapsuleRemoved(entt::registry &reg, entt::entity e)
     reactCommon.destroyCapsuleShape(capsule.shapeReact);
 }
 
-void PhysicsSystem::onConvexRemoved(entt::registry &, entt::entity)
+void PhysicsSystem::onConvexRemoved(entt::registry &reg, entt::entity e)
 {
+    auto &convex = reg.get<ConvexColliderShape>(e);
+    if (convex.shapeReact == NULL) return;
+    onShapeRemoved(reg, e, convex.shapeReact);
+    convex.shapeReact = NULL;
 }
 
-void PhysicsSystem::onConcaveRemoved(entt::registry &, entt::entity)
+void PhysicsSystem::onConcaveRemoved(entt::registry &reg, entt::entity e)
 {
+    auto &concave = reg.get<ConcaveColliderShape>(e);
+    if (concave.shapeReact == NULL) return;
+    onShapeRemoved(reg, e, concave.shapeReact);
+    concave.shapeReact = NULL;
 }
 
 void PhysicsSystem::onColliderRemoved(entt::registry &reg, entt::entity e)
