@@ -26,7 +26,8 @@ GraphicsSettings @not_a_component @json_with_keys:
   debugArmatures: [bool, true]
   debugColliders: [bool, false]
   debugColliderAABBs: [bool, false]
-  debugColliderContactPoints: [bool, false]
+  debugConstraints: [bool, false]
+  debugConstraintLimits: [bool, false]
 
 KeyInputSettings @not_a_component @json_with_keys:
 
@@ -41,17 +42,10 @@ KeyInputSettings @not_a_component @json_with_keys:
   gizmoRotate: [KeyInput::Key, GLFW_KEY_R]
   gizmoScale: [KeyInput::Key, GLFW_KEY_S]
 
-PhysicsSettings @not_a_component @json_with_keys:
-  
-  logError: [bool, true]
-  logWarning: [bool, true]
-  logInfo: [bool, false]
-
 Settings @not_a_component @json_with_keys:
 
   graphics: GraphicsSettings
   audio: AudioSettings
   keyInput: KeyInputSettings
-  physicsSettings: PhysicsSettings
   customSettings: [ json, json::object() ]
   limitUpdatesPerSec: [ bool, false ]

@@ -23,21 +23,14 @@ function create(player)
         },
         ShadowCaster(),
         RigidBody {
-            dynamic = true,
-            gravity = false
-        },
-        Collider {
-            rigidBodyEntity = player,
-            bounciness = .5,
-            bodyOffsetTranslation = vec3(0, 2, 0)
+            gravity = vec3(0),
+            collider = Collider {
+                bounciness = .5
+            }
         },
         CapsuleColliderShape {
-            sphereRadius = .8,
-            sphereDistance = 2.5
-            
-        },
-        ConcaveColliderShape {
-            meshName = "Suzanne"
+            sphereRadius = 2,
+            sphereDistance = 2
         },
         Inspecting()
     })
@@ -53,7 +46,7 @@ function create(player)
             name = "headanim",
             influence = 1.
         })
-        component.RigidBody.getFor(player):dirty().gravity = true
+        component.RigidBody.getFor(player):dirty().gravity = vec3(0, -10, 0)
     end)
 
 end

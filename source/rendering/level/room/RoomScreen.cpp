@@ -11,7 +11,6 @@
 #include "../../../generated/Physics.hpp"
 #include "../../../game/Game.h"
 #include "EnvironmentMap.h"
-#include "ReactPhysicsRenderer.h"
 #include "../../../ecs/systems/PhysicsSystem.h"
 
 #include <generated/Inspecting.hpp>
@@ -20,8 +19,6 @@
 const GLubyte dummyTexData[] = {0, 0, 0};
 
 bool irradianceMapAsSkyBox = true;
-
-ReactPhysicsRenderer *reactPhysicsRenderer = NULL;
 
 RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
         :
@@ -242,39 +239,10 @@ void RoomScreen::renderDebugStuff(double deltaTime)
         debugArmatures();
 
     auto physicsSystem = room->tryFindSystem<PhysicsSystem>();
-    auto reactWorld = physicsSystem ? physicsSystem->getReactWorld() : NULL;
-
-    if (!Game::settings.graphics.debugColliders && !Game::settings.graphics.debugColliderAABBs && !Game::settings.graphics.debugColliderContactPoints)
-    {
-        delete reactPhysicsRenderer;
-        reactPhysicsRenderer = NULL;
-
-        if (reactWorld)
-            reactWorld->setIsDebugRenderingEnabled(false);
-    }
-    else
-    {
-        if (reactWorld)
-        {
-            reactWorld->setIsDebugRenderingEnabled(true);
-
-            if (!reactPhysicsRenderer)
-                reactPhysicsRenderer = new ReactPhysicsRenderer;
-
-            auto &theOtherRenderer = reactWorld->getDebugRenderer();
-            theOtherRenderer.setIsDebugItemDisplayed(reactphysics3d::DebugRenderer::DebugItem::COLLISION_SHAPE, Game::settings.graphics.debugColliders);
-            theOtherRenderer.setIsDebugItemDisplayed(reactphysics3d::DebugRenderer::DebugItem::COLLIDER_AABB, Game::settings.graphics.debugColliderAABBs);
-            theOtherRenderer.setIsDebugItemDisplayed(reactphysics3d::DebugRenderer::DebugItem::CONTACT_POINT, Game::settings.graphics.debugColliderContactPoints);
-        }
-    }
-
-    if (reactPhysicsRenderer)
-    {
-        auto physicsSystem = room->tryFindSystem<PhysicsSystem>();
-        auto reactWorld = physicsSystem ? physicsSystem->getReactWorld() : NULL;
-        if (reactWorld)
-            reactPhysicsRenderer->render(*reactWorld, cam);
-    }
+    
+    physicsSystem->debugDraw([&](auto a, auto b, auto color) {
+        lineRenderer.line(a, b, color);
+    });
 
     gizmoRenderer.beginFrame(deltaTime, vec2(gu::width, gu::height), cam);
     inspector.drawGUI(&cam, lineRenderer, gizmoRenderer);
@@ -291,7 +259,8 @@ void RoomScreen::renderDebugStuff(double deltaTime)
         {
             ImGui::Checkbox("Show colliders", &Game::settings.graphics.debugColliders);
             ImGui::Checkbox("Show collider AABBs", &Game::settings.graphics.debugColliderAABBs);
-            ImGui::Checkbox("Show collider contact points", &Game::settings.graphics.debugColliderContactPoints);
+            ImGui::Checkbox("Show constraints", &Game::settings.graphics.debugConstraints);
+            ImGui::Checkbox("Show constraint limits", &Game::settings.graphics.debugConstraintLimits);
         }
 
         ImGui::DragFloat("HDR exposure", &hdrExposure, .1, 0, 10);

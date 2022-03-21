@@ -11,11 +11,10 @@ function create(floor)
             scale = vec3(100)
         },
         RigidBody {
-            dynamic = false
-        },
-        Collider {
-            rigidBodyEntity = floor,
-            bodyOffsetTranslation = vec3(0, -1, 0)
+            mass = 0,
+            collider = Collider {
+                bounciness = 1
+            }
         },
         BoxColliderShape {
             halfExtents = vec3(100, 1, 100)

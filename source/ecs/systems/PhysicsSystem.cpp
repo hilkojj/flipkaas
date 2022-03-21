@@ -1,29 +1,148 @@
 #include "PhysicsSystem.h"
 #include "../../generated/Physics.hpp"
 #include "../../game/Game.h"
-#include <set>
 #include <utils/gltf_model_loader.h>
+#include <btBulletCollisionCommon.h>
+#include <BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolver.h>
+#include <BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h>
+
+struct BulletStuff
+{
+    // collision configuration contains default setup for memory, collision setup. Advanced users can create their own configuration.
+    btDefaultCollisionConfiguration collisionConfig;
+
+    btCollisionDispatcher dispatcher;
+
+    // btDbvtBroadphase is a good general purpose broadphase. You can also try out btAxis3Sweep.
+    btDbvtBroadphase overlappingPairCache;
+
+    btSequentialImpulseConstraintSolver solver;
+
+    btDiscreteDynamicsWorld world;
+
+    btEmptyShape emptyShape;
+
+    BulletStuff()
+        :
+        dispatcher(&collisionConfig),
+        world(&dispatcher, &overlappingPairCache, &solver, &collisionConfig)
+    {
+
+        world.setGravity(btVector3(0, 0, 0));
+    }
+
+    ~BulletStuff()
+    {
+    }
+};
+
+btVector3 vec3ToBt(const vec3 &v)
+{
+    return btVector3(v.x, v.y, v.z);
+}
+
+vec3 btToVec3(const btVector3 &v)
+{
+    return vec3(v.getX(), v.getY(), v.getZ());
+}
+
+btQuaternion quatToBt(const quat &q)
+{
+    return btQuaternion(q.x, q.y, q.z, q.w);
+}
+
+quat btToQuat(const btQuaternion &q)
+{
+    return quat(q.getW(), q.getX(), q.getY(), q.getZ());
+}
+
+void syncCollider(btCollisionObject *obj, Collider &collider)
+{
+    if (collider.dirty<&Collider::bounciness>())
+        obj->setRestitution(collider.bounciness);
+
+    if (collider.dirty<&Collider::frictionCoefficent>())
+    {
+        collider.frictionCoefficent = max(0.f, collider.frictionCoefficent);
+        obj->setFriction(collider.frictionCoefficent);
+    }
+
+    // if (collider.dirty<&Collider::bodyOffsetTranslation>() || collider.dirty<&Collider::bodyOffsetRotation>())
+    // {
+        // TODO: use btCompoundShape for this
+        // https://pybullet.org/Bullet/phpBB3/viewtopic.php?t=9546
+    // }
+    collider.undirtAll();
+}
+
+void syncRigidBody(RigidBody &body, BulletStuff *bullet)
+{
+    assert(body.bt);
+    if (body.collider.anyDirty())
+        syncCollider(body.bt, body.collider);
+
+    if (!body.anyDirty())
+        return;
+
+    // something is dirty
+    body.bt->activate();
+
+    if (body.dirty<&RigidBody::gravity>())
+        body.bt->setGravity(vec3ToBt(body.gravity));
+
+    body.linearDamping = max(body.linearDamping, 0.f);
+    body.angularDamping = max(body.angularDamping, 0.f);
+    body.bt->setDamping(body.linearDamping, body.angularDamping);
+
+    if (body.dirty<&RigidBody::allowSleep>())
+    {
+        body.bt->setActivationState(!body.allowSleep ? DISABLE_DEACTIVATION : ACTIVE_TAG);
+    }
+    if (body.dirty<&RigidBody::mass>())
+    {
+        btVector3 inertia;
+        if (!dynamic_cast<btEmptyShape *>(body.bt->getCollisionShape()))
+            body.bt->getCollisionShape()->calculateLocalInertia(body.mass, inertia);
+
+        body.bt->setMassProps(body.mass, inertia);
+    }
+
+    if (body.dirty<&RigidBody::angularAxisFactor>())
+        body.bt->setAngularFactor(vec3ToBt(body.angularAxisFactor));
+    if (body.dirty<&RigidBody::linearAxisFactor>())
+        body.bt->setLinearFactor(vec3ToBt(body.linearAxisFactor));
+
+    body.undirtAll();
+}
+
+void addRigidBody(BulletStuff *bullet, RigidBody *rb)
+{
+    bullet->world.addRigidBody(rb->bt, rb->collider.collisionCategoryBits, rb->collider.collideWithMaskBits);
+    rb->bedirtAll();
+    rb->collider.bedirtAll();
+    syncRigidBody(*rb, bullet);
+    rb->bt->activate();
+}
+
+void readdBodyForChange(entt::registry &reg, entt::entity e, BulletStuff *bullet, std::function<void()> change)
+{
+    if (auto rb = reg.try_get<RigidBody>(e))
+    {
+        assert(rb->bt);
+        bullet->world.removeRigidBody(rb->bt);
+        change();
+        addRigidBody(bullet, rb);
+    }
+    else change();
+
+}
 
 void PhysicsSystem::init(EntityEngine* engine)
 {
     auto room = dynamic_cast<Room3D *>(engine);
     if (!room) throw gu_err("engine is not a room");
- 
-    auto logger = reactCommon.createDefaultLogger();
-    uint logLevel = 0u;
-    if (Game::settings.physicsSettings.logError)
-        logLevel |= static_cast<uint>(reactphysics3d::Logger::Level::Error);
-    if (Game::settings.physicsSettings.logWarning)
-        logLevel |= static_cast<uint>(reactphysics3d::Logger::Level::Warning);
-    if (Game::settings.physicsSettings.logInfo)
-        logLevel |= static_cast<uint>(reactphysics3d::Logger::Level::Information);
-    logger->addStreamDestination(std::cout, logLevel, reactphysics3d::DefaultLogger::Format::Text);
-    reactCommon.setLogger(logger);
 
-    reactphysics3d::PhysicsWorld::WorldSettings settings;
-    settings.worldName = room->name + " (room index: " + std::to_string(room->getIndexInLevel()) + ")";
-    //settings.gravity.setToZero();
-    reactWorld = reactCommon.createPhysicsWorld(settings);
+    bullet = new BulletStuff;
 
     updateFrequency = 60;
 
@@ -55,16 +174,13 @@ void PhysicsSystem::init(EntityEngine* engine)
     engine->entities.on_replace<ConvexColliderShape>()		.connect<&PhysicsSystem::onConvexRemoved>(this);
     engine->entities.on_replace<ConcaveColliderShape>()		.connect<&PhysicsSystem::onConcaveRemoved>(this);
 
-    engine->entities.on_destroy<Collider>()					.connect<&PhysicsSystem::onColliderRemoved>(this);
-    engine->entities.on_replace<Collider>()					.connect<&PhysicsSystem::onColliderRemoved>(this);
-    engine->entities.on_construct<Collider>()				.connect<&PhysicsSystem::onColliderAdded>(this);
-
     // todo/note: replacing components is not supported by the lua api, however, if done from C++, things like colliders probably wont be added.
 }
 
 
 bool PhysicsSystem::loadColliderMeshesFromGLTF(const char *path, bool force, bool convex)
 {
+    /*
     if (!force && modelFileLoadTime.find(path) != modelFileLoadTime.end())
         return false;
 
@@ -148,163 +264,102 @@ bool PhysicsSystem::loadColliderMeshesFromGLTF(const char *path, bool force, boo
     }
 
     modelFileLoadTime[path] = glfwGetTime();
+    */
     return true;
+}
+
+void PhysicsSystem::debugDraw(const std::function<void(const vec3 &a, const vec3 &b, const vec3 &color)> &lineCallback)
+{
+    struct Drawer : public btIDebugDraw
+    {
+        decltype(lineCallback) &cb;
+
+        int debugMode;
+
+        Drawer(decltype(lineCallback) &cb) : cb(cb)
+        {}
+
+        virtual void drawLine(const btVector3 &from, const btVector3 &to, const btVector3 &color) override
+        {
+            cb(btToVec3(from), btToVec3(to), btToVec3(color));
+        }
+
+        virtual void drawContactPoint(const btVector3 &PointOnB, const btVector3 &normalOnB, btScalar distance, int lifeTime, const btVector3 &color) override
+        {}
+
+        virtual void reportErrorWarning(const char *warningString) override
+        {}
+
+        virtual void draw3dText(const btVector3 &location, const char *textString) override
+        {}
+
+        virtual void setDebugMode(int debugMode) override
+        {
+            this->debugMode = debugMode;
+        }
+
+        virtual int getDebugMode() const override
+        {
+            return debugMode;
+        }
+    } drawer(lineCallback);
+
+    bullet->world.setDebugDrawer(&drawer);
+    int mode = 0;
+    if (Game::settings.graphics.debugColliders)
+        mode |= btIDebugDraw::DBG_DrawWireframe;
+    if (Game::settings.graphics.debugColliderAABBs)
+        mode |= btIDebugDraw::DBG_DrawAabb;
+    if (Game::settings.graphics.debugConstraints)
+        mode |= btIDebugDraw::DBG_DrawConstraints;
+    if (Game::settings.graphics.debugConstraintLimits)
+        mode |= btIDebugDraw::DBG_DrawConstraintLimits;
+    bullet->world.getDebugDrawer()->setDebugMode(mode);
+    bullet->world.debugDrawWorld();
+    bullet->world.setDebugDrawer(NULL);
 }
 
 PhysicsSystem::~PhysicsSystem()
 {
-    for (auto tris : reactTris)
-        delete tris;
-    for (auto polys : reactPolys)
-        delete polys;
-}
-
-void transformToReact(const vec3 &translate, const quat &rotate, reactphysics3d::Transform &out)
-{
-    out.setPosition(reactphysics3d::Vector3(translate.x, translate.y, translate.z));
-    out.setOrientation(reactphysics3d::Quaternion(rotate.x, rotate.y, rotate.z, rotate.w));
-    if (!out.isValid())
-    {
-        out.setPosition(reactphysics3d::Vector3::zero());
-        out.setOrientation(reactphysics3d::Quaternion::identity());
-        std::cerr << "transformToReact warning: transform is not valid" << std::endl;
-    }
-}
-
-void transformToReact(const Transform &t, reactphysics3d::Transform &out)
-{
-    transformToReact(t.position, t.rotation, out);
-}
-
-
-void reactToTransform(const reactphysics3d::Transform &t, Transform &out)
-{
-    auto &pos = t.getPosition();
-    out.position.x = pos.x;
-    out.position.y = pos.y;
-    out.position.z = pos.z;
-    auto &rot = t.getOrientation();
-    out.rotation.x = rot.x;
-    out.rotation.y = rot.y;
-    out.rotation.z = rot.z;
-    out.rotation.w = rot.w;
-}
-
-void syncReactRigidBody(RigidBody &body)
-{
-    if (!body.anyDirty())
-        return;
-    // something is dirty
-    body.reactBody->setIsSleeping(false);	// enabling gravity for example has no effect if the body is sleeping.
-
-    if (body.dirty<&RigidBody::gravity>())
-        body.reactBody->enableGravity(body.gravity);
-    if (body.dirty<&RigidBody::linearDamping>())
-    {
-        body.linearDamping = max(body.linearDamping, 0.f);
-        body.reactBody->setLinearDamping(body.linearDamping);
-    }
-    if (body.dirty<&RigidBody::angularDamping>())
-    {
-        body.angularDamping = max(body.angularDamping, 0.f);
-        body.reactBody->setAngularDamping(body.angularDamping);
-    }
-    if (body.dirty<&RigidBody::allowSleep>())
-        body.reactBody->setIsAllowedToSleep(body.allowSleep);
-    if (body.dirty<&RigidBody::dynamic>())
-        body.reactBody->setType(body.dynamic ? reactphysics3d::BodyType::DYNAMIC : reactphysics3d::BodyType::STATIC);
-    if (body.dirty<&RigidBody::mass>())
-        body.reactBody->setMass(body.mass);
-    if (body.dirty<&RigidBody::angularAxisFactor>())
-        body.reactBody->setAngularLockAxisFactor(reactphysics3d::Vector3(body.angularAxisFactor.x, body.angularAxisFactor.y, body.angularAxisFactor.z));
-    if (body.dirty<&RigidBody::linearAxisFactor>())
-        body.reactBody->setLinearLockAxisFactor(reactphysics3d::Vector3(body.linearAxisFactor.x, body.linearAxisFactor.y, body.linearAxisFactor.z));
-
-    body.undirtAll();
-}
-
-void wakeCollidersRigidBody(const Collider &collider, entt::registry &reg)
-{
-    if (reg.valid(collider.rigidBodyEntity))
-    {
-        if (auto body = reg.try_get<RigidBody>(collider.rigidBodyEntity))
-        {
-            if (body->reactBody)
-                body->reactBody->setIsSleeping(false);
-        }
-    }
+    delete bullet;
 }
 
 void PhysicsSystem::update(double deltaTime, EntityEngine* room)
 {
-    room->entities.view<Collider>().each([&](auto e, Collider &collider) {
+    room->entities.view<BoxColliderShape>().each([&](auto e, BoxColliderShape &shape) {
+        if (!shape.anyDirty()) return;
+        assert(shape.bt);
 
-        if (collider.rigidBodyEntity != collider.prevRigidBodyEntity)
-        {
-            auto newRigidBody = collider.rigidBodyEntity;
-            collider.rigidBodyEntity = collider.prevRigidBodyEntity;
-            onColliderRemoved(room->entities, e);
-
-            collider.rigidBodyEntity = newRigidBody;
-            collider.prevRigidBodyEntity = newRigidBody;
-
-            onColliderAdded(room->entities, e);
-        }
-
-        if (collider.anyDirty() && collider.reactCollider)
-        {
-            auto &material = collider.reactCollider->getMaterial();
-            if (collider.dirty<&Collider::bounciness>())
-            {
-                collider.bounciness = clamp(collider.bounciness, 0.f, 1.f);
-                material.setBounciness(collider.bounciness);
-            }
-            if (collider.dirty<&Collider::frictionCoefficent>())
-            {
-                collider.frictionCoefficent = max(0.f, collider.frictionCoefficent);
-                material.setFrictionCoefficient(collider.frictionCoefficent);
-            }
-
-            if (collider.dirty<&Collider::collisionCategoryBits>())
-                collider.reactCollider->setCollisionCategoryBits(collider.collisionCategoryBits);
-            if (collider.dirty<&Collider::collideWithMaskBits>())
-                collider.reactCollider->setCollideWithMaskBits(collider.collideWithMaskBits);
-
-            if (collider.dirty<&Collider::bodyOffsetTranslation>() || collider.dirty<&Collider::bodyOffsetRotation>())
-            {
-                reactphysics3d::Transform localToBody;
-                transformToReact(collider.bodyOffsetTranslation, collider.bodyOffsetRotation, localToBody);
-                collider.reactCollider->setLocalToBodyTransform(localToBody);
-            }
-            collider.undirtAll();
-        }
-    });
-    room->entities.view<BoxColliderShape, Collider>().each([&](BoxColliderShape &shape, Collider &collider) {
-        if (!shape.anyDirty() || !shape.shapeReact) return;
-
-        shape.shapeReact->setHalfExtents(reactphysics3d::Vector3(shape.halfExtents.x, shape.halfExtents.y, shape.halfExtents.z));
-
-        wakeCollidersRigidBody(collider, room->entities);
+        readdBodyForChange(room->entities, e, bullet, [&] {
+            shape.bt->setImplicitShapeDimensions(vec3ToBt(shape.halfExtents));
+        });
         shape.undirtAll();
     });
-    room->entities.view<SphereColliderShape, Collider>().each([&](SphereColliderShape &shape, Collider &collider) {
-        if (!shape.anyDirty() || !shape.shapeReact) return;
+    room->entities.view<SphereColliderShape>().each([&](auto e, SphereColliderShape &shape) {
+        if (!shape.anyDirty()) return;
+        assert(shape.bt);
 
         shape.radius = max(0.f, shape.radius);
-        shape.shapeReact->setRadius(shape.radius);
-        wakeCollidersRigidBody(collider, room->entities);
+
+        readdBodyForChange(room->entities, e, bullet, [&] {
+            shape.bt->setUnscaledRadius(shape.radius);
+        });
+
         shape.undirtAll();
     });
-    room->entities.view<CapsuleColliderShape, Collider>().each([&](CapsuleColliderShape &shape, Collider &collider) {
-        if (!shape.anyDirty() || !shape.shapeReact) return;
+    room->entities.view<CapsuleColliderShape>().each([&](auto e, CapsuleColliderShape &shape) {
+        if (!shape.anyDirty()) return;
+        assert(shape.bt);
 
         shape.sphereDistance = max(0.f, shape.sphereDistance);
-        shape.shapeReact->setHeight(shape.sphereDistance);
         shape.sphereRadius = max(0.f, shape.sphereRadius);
-        shape.shapeReact->setRadius(shape.sphereRadius);
-        wakeCollidersRigidBody(collider, room->entities);
+
+        onCapsuleRemoved(room->entities, e);
+        onCapsuleAdded(room->entities, e);
+
         shape.undirtAll();
     });
+    /*
     room->entities.view<ConvexColliderShape, Collider>().each([&](auto e, ConvexColliderShape &shape, Collider &collider) {
         if (!shape.anyDirty()) return;
 
@@ -329,271 +384,86 @@ void PhysicsSystem::update(double deltaTime, EntityEngine* room)
         wakeCollidersRigidBody(collider, room->entities);
         shape.undirtAll();
     });
+    */
 
     {
-        gu::profiler::Zone z("ReactPhysics3D");
-        reactWorld->update(deltaTime);
+        gu::profiler::Zone z("bullet");
+        bullet->world.stepSimulation(updateFrequency ? 1.f / updateFrequency : deltaTime);
     }
 
-    room->entities.view<Transform, RigidBody>().each([](auto e, Transform &transform, RigidBody &body) {
+    room->entities.view<Transform, RigidBody>().each([&](auto e, Transform &transform, RigidBody &body) {
 
-        assert(body.reactBody);
-        
+        assert(body.bt);
+        auto &btTrans = body.bt->getWorldTransform();
+
         // copy body transform to entity transform:
         if (body.allowExternalTransform)
         {
             auto posDiff = transform.position - body.prevPosition;
             auto rotDiff = transform.rotation - body.prevRotation;
 
-            reactToTransform(body.reactBody->getTransform(), transform);
+            transform.position = btToVec3(btTrans.getOrigin()) + posDiff;
+            transform.rotation = btToQuat(btTrans.getRotation()) + rotDiff;
 
-            transform.position += posDiff;
-            transform.rotation += rotDiff;
-
-            reactphysics3d::Transform t;
-            transformToReact(transform, t);
-            body.reactBody->setTransform(t);
-
+            if (posDiff != mu::ZERO_3  || rotDiff != quat(0, 0, 0, 0))
+            {
+                btTrans.setOrigin(vec3ToBt(transform.position));
+                btTrans.setRotation(quatToBt(transform.rotation));
+                body.bt->activate();
+            }
             body.prevPosition = transform.position;
             body.prevRotation = transform.rotation;
         }
-        else reactToTransform(body.reactBody->getTransform(), transform);
+        else
+        {
+            transform.position = btToVec3(btTrans.getOrigin());
+            transform.rotation = btToQuat(btTrans.getRotation());
+        }
 
-        // sync component settings with react:
-        syncReactRigidBody(body);
+        // sync component settings with bullet:
+        if (body.collider.dirty<&Collider::collisionCategoryBits>() || body.collider.dirty<&Collider::collideWithMaskBits>())
+        {
+            bullet->world.removeRigidBody(body.bt);
+            addRigidBody(bullet, &body);
+        }
+        else syncRigidBody(body, bullet);
     });
 }
 
 void PhysicsSystem::onRigidBodyRemoved(entt::registry &reg, entt::entity e)
 {
     auto &body = reg.get<RigidBody>(e);
-    
-    if (body.reactBody)
-    {
-        for (int i = 0; i < body.reactBody->getNbColliders(); i++)
-        {
-            auto colliderEntity = entt::entity(reinterpret_cast<uintptr_t>(body.reactBody->getCollider(i)->getUserData()));
-            if (!reg.valid(colliderEntity))
-            {
-                throw gu_err("Collider userdata did not give an valid entity");
-            }
-            if (!reg.has<Collider>(colliderEntity))
-            {
-                throw gu_err("Collider userdata gave an entity that does not have a Collider component");
-            }
-            auto &collider = reg.get<Collider>(colliderEntity);
-            collider.reactCollider = NULL;
-        }
-        reactWorld->destroyRigidBody(body.reactBody);
-    }
-}
+    assert(body.bt);
 
-struct HasColliders
-{
-    std::set<entt::entity> colliders;
-};
+    bullet->world.removeRigidBody(body.bt);
+
+    delete body.bt->getMotionState();
+    delete body.bt;
+    body.bt = NULL;
+}
 
 void PhysicsSystem::onRigidBodyAdded(entt::registry &reg, entt::entity e)
 {
-    reactphysics3d::Transform reactTransform;
-
     auto &body = reg.get<RigidBody>(e);
+    
+    if (body.bt)
+        throw gu_err("This rigid body already has a bullet instance.");
 
+    btTransform btTrans = btTransform::getIdentity();
     if (auto transform = reg.try_get<Transform>(e))
     {
-        transformToReact(*transform, reactTransform);
+        btTrans.setOrigin(vec3ToBt(transform->position));
+        btTrans.setRotation(quatToBt(transform->rotation));
+
         body.prevPosition = transform->position;
         body.prevRotation = transform->rotation;
     }
 
-
-    body.reactBody = reactWorld->createRigidBody(reactTransform);
-
-    if (auto has = reg.try_get<HasColliders>(e))
-    {
-        for (auto collider : has->colliders)
-        {
-            onColliderAdded(reg, collider);
-        }
-    }
-    body.bedirtAll();
-    syncReactRigidBody(body);
-}
-
-void setColliderUserData(reactphysics3d::Collider *collider, entt::entity colliderEntity)
-{
-    uintptr_t e = uintptr_t(colliderEntity);
-    collider->setUserData((void *)e);
-}
-
-void onShapeAdded(entt::registry &reg, entt::entity e, reactphysics3d::CollisionShape *shape)
-{
-    auto collider = reg.try_get<Collider>(e);
-    if (!collider) return;
-    if (!reg.valid(collider->rigidBodyEntity)) return;
-
-    auto rigidBody = reg.try_get<RigidBody>(collider->rigidBodyEntity);
-    if (!rigidBody) return;
-
-    assert(rigidBody->reactBody);
-    
-    reactphysics3d::Transform reactTransform;
-    transformToReact(collider->bodyOffsetTranslation, collider->bodyOffsetRotation, reactTransform);
-
-    // remove older collider first:
-    if (collider->reactCollider)
-        rigidBody->reactBody->removeCollider(collider->reactCollider);
-
-    collider->reactCollider = rigidBody->reactBody->addCollider(shape, reactTransform);
-    setColliderUserData(collider->reactCollider, e);
-    collider->bedirtAll();
-}
-
-void PhysicsSystem::onBoxAdded(entt::registry &reg, entt::entity e)
-{
-    auto &box = reg.get<BoxColliderShape>(e);
-    if (!box.shapeReact)
-        box.shapeReact = reactCommon.createBoxShape(reactphysics3d::Vector3(box.halfExtents.x, box.halfExtents.y, box.halfExtents.z));
-
-    onShapeAdded(reg, e, box.shapeReact);
-}
-
-void PhysicsSystem::onSphereAdded(entt::registry &reg, entt::entity e)
-{
-    auto &sphere = reg.get<SphereColliderShape>(e);
-    if (!sphere.shapeReact)
-        sphere.shapeReact = reactCommon.createSphereShape(sphere.radius);
-
-    onShapeAdded(reg, e, sphere.shapeReact);
-}
-
-void PhysicsSystem::onCapsuleAdded(entt::registry &reg, entt::entity e)
-{
-    auto &cap = reg.get<CapsuleColliderShape>(e);
-    if (!cap.shapeReact)
-        cap.shapeReact = reactCommon.createCapsuleShape(cap.sphereRadius, cap.sphereDistance);
-
-    onShapeAdded(reg, e, cap.shapeReact);
-}
-
-void PhysicsSystem::onConvexAdded(entt::registry &reg, entt::entity e)
-{
-    auto &convex = reg.get<ConvexColliderShape>(e);
-    
-    if (!convex.shapeReact)
-    {
-        auto it = reactConvexMeshes.find(convex.meshName);
-        if (it != reactConvexMeshes.end())
-        {
-            convex.shapeReact = it->second;
-            onShapeAdded(reg, e, convex.shapeReact);
-        }
-    }
-}
-
-void PhysicsSystem::onConcaveAdded(entt::registry &reg, entt::entity e)
-{
-    auto &concave = reg.get<ConcaveColliderShape>(e);
-    
-    if (!concave.shapeReact)
-    {
-        auto it = reactConcaveMeshes.find(concave.meshName);
-        if (it != reactConcaveMeshes.end())
-        {
-            concave.shapeReact = it->second;
-            onShapeAdded(reg, e, concave.shapeReact);
-        }
-    }
-}
-
-void onShapeRemoved(entt::registry &reg, entt::entity e, reactphysics3d::CollisionShape *shape)
-{
-    // remove reactCollider if box is in use:
-    auto collider = reg.try_get<Collider>(e);
-    if (collider && collider->reactCollider)
-    {
-        if (collider->reactCollider->getCollisionShape() == shape && reg.valid(collider->rigidBodyEntity))
-        {
-            auto rigidBody = reg.try_get<RigidBody>(collider->rigidBodyEntity);
-            if (rigidBody)
-            {
-                assert(rigidBody->reactBody);
-                rigidBody->reactBody->removeCollider(collider->reactCollider);
-                rigidBody->reactBody->setIsSleeping(false);
-            }
-        }
-        collider->reactCollider = NULL;
-    }
-}
-
-void PhysicsSystem::onBoxRemoved(entt::registry &reg, entt::entity e)
-{
-    auto &box = reg.get<BoxColliderShape>(e);
-    if (box.shapeReact == NULL) return;
-    onShapeRemoved(reg, e, box.shapeReact);
-    reactCommon.destroyBoxShape(box.shapeReact);
-}
-
-void PhysicsSystem::onSphereRemoved(entt::registry &reg, entt::entity e)
-{
-    auto &sphere = reg.get<SphereColliderShape>(e);
-    if (sphere.shapeReact == NULL) return;
-    onShapeRemoved(reg, e, sphere.shapeReact);
-    reactCommon.destroySphereShape(sphere.shapeReact);
-}
-
-void PhysicsSystem::onCapsuleRemoved(entt::registry &reg, entt::entity e)
-{
-    auto &capsule = reg.get<CapsuleColliderShape>(e);
-    if (capsule.shapeReact == NULL) return;
-    onShapeRemoved(reg, e, capsule.shapeReact);
-    reactCommon.destroyCapsuleShape(capsule.shapeReact);
-}
-
-void PhysicsSystem::onConvexRemoved(entt::registry &reg, entt::entity e)
-{
-    auto &convex = reg.get<ConvexColliderShape>(e);
-    if (convex.shapeReact == NULL) return;
-    onShapeRemoved(reg, e, convex.shapeReact);
-    convex.shapeReact = NULL;
-}
-
-void PhysicsSystem::onConcaveRemoved(entt::registry &reg, entt::entity e)
-{
-    auto &concave = reg.get<ConcaveColliderShape>(e);
-    if (concave.shapeReact == NULL) return;
-    onShapeRemoved(reg, e, concave.shapeReact);
-    concave.shapeReact = NULL;
-}
-
-void PhysicsSystem::onColliderRemoved(entt::registry &reg, entt::entity e)
-{
-    auto &collider = reg.get<Collider>(e);
-    if (reg.valid(collider.rigidBodyEntity))
-    {
-        if (auto has = reg.try_get<HasColliders>(collider.rigidBodyEntity))
-        {
-            has->colliders.erase(e);
-        }
-    }
-    if (collider.reactCollider)
-    {
-        collider.reactCollider->getBody()->removeCollider(collider.reactCollider);
-        collider.reactCollider = NULL;
-    }
-    wakeCollidersRigidBody(collider, reg);
-}
-
-void PhysicsSystem::onColliderAdded(entt::registry &reg, entt::entity e)
-{
-    auto &collider = reg.get<Collider>(e);
-    collider.bedirtAll();
-    collider.prevRigidBodyEntity = collider.rigidBodyEntity;
-    if (reg.valid(collider.rigidBodyEntity))
-    {
-        auto &has = reg.get_or_assign<HasColliders>(collider.rigidBodyEntity);
-        has.colliders.insert(e);
-    }
+    body.bt = new btRigidBody(btRigidBody::btRigidBodyConstructionInfo(
+        body.mass,
+        new btDefaultMotionState(btTrans),
+        &bullet->emptyShape
+    ));
 
     if (reg.has<BoxColliderShape>(e))
         onBoxAdded(reg, e);
@@ -605,4 +475,142 @@ void PhysicsSystem::onColliderAdded(entt::registry &reg, entt::entity e)
         onConvexAdded(reg, e);
     else if (reg.has<ConcaveColliderShape>(e))
         onConcaveAdded(reg, e);
+    else
+        addRigidBody(bullet, &body);
+}
+
+void onShapeAdded(entt::registry &reg, entt::entity e, btCollisionShape *shape, BulletStuff *bullet)
+{
+    auto rigidBody = reg.try_get<RigidBody>(e);
+    if (!rigidBody) return;
+
+    assert(rigidBody->bt);
+    readdBodyForChange(reg, e, bullet, [&] {
+        rigidBody->bt->setCollisionShape(shape);
+    });
+}
+
+void PhysicsSystem::onBoxAdded(entt::registry &reg, entt::entity e)
+{
+    auto &box = reg.get<BoxColliderShape>(e);
+    if (!box.bt)
+        box.bt = new btBoxShape(vec3ToBt(box.halfExtents));
+
+    onShapeAdded(reg, e, box.bt, bullet);
+}
+
+void PhysicsSystem::onSphereAdded(entt::registry &reg, entt::entity e)
+{
+    auto &sphere = reg.get<SphereColliderShape>(e);
+    if (!sphere.bt)
+        sphere.bt = new btSphereShape(sphere.radius);
+
+    onShapeAdded(reg, e, sphere.bt, bullet);
+}
+
+void PhysicsSystem::onCapsuleAdded(entt::registry &reg, entt::entity e)
+{
+    auto &cap = reg.get<CapsuleColliderShape>(e);
+    if (!cap.bt)
+        cap.bt = new btCapsuleShape(cap.sphereRadius, cap.sphereDistance);
+
+    onShapeAdded(reg, e, cap.bt, bullet);
+}
+
+void PhysicsSystem::onConvexAdded(entt::registry &reg, entt::entity e)
+{
+    auto &convex = reg.get<ConvexColliderShape>(e);
+    /*
+    
+    if (!convex.shapeReact)
+    {
+        auto it = reactConvexMeshes.find(convex.meshName);
+        if (it != reactConvexMeshes.end())
+        {
+            convex.shapeReact = it->second;
+            onShapeAdded(reg, e, convex.shapeReact);
+        }
+    }
+    */
+}
+
+void PhysicsSystem::onConcaveAdded(entt::registry &reg, entt::entity e)
+{
+    auto &concave = reg.get<ConcaveColliderShape>(e);
+    /*
+    
+    if (!concave.shapeReact)
+    {
+        auto it = reactConcaveMeshes.find(concave.meshName);
+        if (it != reactConcaveMeshes.end())
+        {
+            concave.shapeReact = it->second;
+            onShapeAdded(reg, e, concave.shapeReact);
+        }
+    }
+    */
+}
+
+void onShapeRemoved(entt::registry &reg, entt::entity e, btCollisionShape *shape, BulletStuff *bullet)
+{
+    auto rigidBody = reg.try_get<RigidBody>(e);
+    if (!rigidBody) return;
+
+    assert(rigidBody->bt);
+
+    if (rigidBody->bt->getCollisionShape() == shape)
+    {
+        readdBodyForChange(reg, e, bullet, [&] {
+            rigidBody->bt->setCollisionShape(&bullet->emptyShape);
+        });
+        rigidBody->bt->activate();
+    }
+    
+}
+
+void PhysicsSystem::onBoxRemoved(entt::registry &reg, entt::entity e)
+{
+    auto &box = reg.get<BoxColliderShape>(e);
+    if (box.bt == NULL) return;
+    onShapeRemoved(reg, e, box.bt, bullet);
+    delete box.bt;
+    box.bt = NULL;
+}
+
+void PhysicsSystem::onSphereRemoved(entt::registry &reg, entt::entity e)
+{
+    auto &sphere = reg.get<SphereColliderShape>(e);
+    if (sphere.bt == NULL) return;
+    onShapeRemoved(reg, e, sphere.bt, bullet);
+    delete sphere.bt;
+    sphere.bt = NULL;
+}
+
+void PhysicsSystem::onCapsuleRemoved(entt::registry &reg, entt::entity e)
+{
+    auto &capsule = reg.get<CapsuleColliderShape>(e);
+    if (capsule.bt == NULL) return;
+    onShapeRemoved(reg, e, capsule.bt, bullet);
+    delete capsule.bt;
+    capsule.bt = NULL;
+}
+
+void PhysicsSystem::onConvexRemoved(entt::registry &reg, entt::entity e)
+{
+    auto &convex = reg.get<ConvexColliderShape>(e);
+    /*
+    if (convex.shapeReact == NULL) return;
+    onShapeRemoved(reg, e, convex.shapeReact);
+    convex.shapeReact = NULL;
+    */
+}
+
+void PhysicsSystem::onConcaveRemoved(entt::registry &reg, entt::entity e)
+{
+    auto &concave = reg.get<ConcaveColliderShape>(e);
+    /*
+    if (concave.shapeReact == NULL) return;
+    onShapeRemoved(reg, e, concave.shapeReact);
+    concave.shapeReact = NULL;
+    */
 }

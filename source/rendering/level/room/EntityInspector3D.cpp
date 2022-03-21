@@ -1,7 +1,6 @@
 
 #include "EntityInspector3D.h"
 #include "../../../ecs/systems/PhysicsSystem.h"
-#include <reactphysics3d/reactphysics3d.h>
 #include <generated/Inspecting.hpp>
 #include "../../../generated/Physics.hpp"
 #include <input/key_input.h>
@@ -18,7 +17,7 @@ void EntityInspector3D::drawGUI(const Camera *cam, DebugLineRenderer &dlr, Gizmo
             {
                 if (RigidBody *rigidBody = engine.entities.try_get<RigidBody>(movingEntity))
                 {
-                    rigidBody->reactBody->setIsSleeping(true);
+                    //rigidBody->reactBody->setIsSleeping(true);
                 }
             }
         }
@@ -49,6 +48,7 @@ void EntityInspector3D::pickEntityGUI(const Camera *cam, DebugLineRenderer &rend
 
 entt::entity EntityInspector3D::pickEntityInRoom(const Camera *cam, DebugLineRenderer &renderer, bool preferBody)
 {
+    /*
     auto ps = engine.tryFindSystem<PhysicsSystem>();
     if (!ps) return entt::null;
     auto reactWorld = ps->getReactWorld();
@@ -105,6 +105,7 @@ entt::entity EntityInspector3D::pickEntityInRoom(const Camera *cam, DebugLineRen
 
         return toInspect;
     }
+    */
     return entt::null;
 }
 

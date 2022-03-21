@@ -1,73 +1,63 @@
 config:
   fwd_decl:
-    - reactphysics3d::RigidBody
-    - reactphysics3d::Collider
-    - reactphysics3d::BoxShape
-    - reactphysics3d::SphereShape
-    - reactphysics3d::CapsuleShape
-    - reactphysics3d::ConvexMeshShape
-    - reactphysics3d::ConcaveMeshShape
+    - btRigidBody
+    - btBoxShape
+    - btSphereShape
+    - btCapsuleShape
+    - btCompoundShape
+
+      
+Collider @dirtyable @not_a_component:
+  bounciness: float
+  frictionCoefficent: float
+
+  collisionCategoryBits: [int, 1]
+  collideWithMaskBits: [int, 1]
+
+  # bodyOffsetTranslation: vec3
+  # bodyOffsetRotation: [quat, "quat(1, 0, 0, 0)"]
 
 RigidBody @dirtyable:
-  dynamic: bool
-  gravity: [bool, true]
+  gravity: [vec3, "vec3(0, -10, 0)"]
   allowSleep: [bool, true]
   angularDamping: float
   linearDamping: float
-  mass: [float, 1] # kilograms
-  # todo: mass from collider mass density. See react docs
+  mass: [float, 1] # 0 means static.
   # todo: center of mass?
   # todo: Inertia Tensor?
 
   linearAxisFactor: [vec3, vec3(1)]
   angularAxisFactor: [vec3, vec3(1)]
 
+  collider: Collider
+
   allowExternalTransform: [bool, true] # only disable for performance reasons?
 
   _cpp_only:
-    reactBody: [reactphysics3d::RigidBody *, NULL]
     prevPosition: [vec3, vec3()]
     prevRotation: [quat, "quat(1, 0, 0, 0)"]
-  
-Collider @dirtyable:
-  rigidBodyEntity: [entt::entity, entt::null]
-
-  bounciness: float
-  frictionCoefficent: float
-
-  collisionCategoryBits: [uint16, 1u]
-  collideWithMaskBits: [uint16, 1u]
-
-  bodyOffsetTranslation: vec3
-  bodyOffsetRotation: [quat, "quat(1, 0, 0, 0)"]
-
-  _cpp_only:
-    prevRigidBodyEntity: [entt::entity, entt::null]
-    reactCollider: [reactphysics3d::Collider *, NULL]
+    bt: [btRigidBody *, NULL]
+    # TODO: add for body offsets & multiple shaped per body: btCompondShape: [btCompoundShape *, NULL]
 
 BoxColliderShape @dirtyable:
   halfExtents: [vec3, vec3(1)]
   _cpp_only:
-    shapeReact: [reactphysics3d::BoxShape *, NULL]
+    bt: [btBoxShape *, NULL]
 
 SphereColliderShape @dirtyable:
   radius: [float, 1]
   _cpp_only:
-    shapeReact: [reactphysics3d::SphereShape *, NULL]
+    bt: [btSphereShape *, NULL]
 
 CapsuleColliderShape @dirtyable:
   sphereRadius: [float, 1]
   sphereDistance: [float, 1]
   _cpp_only:
-    shapeReact: [reactphysics3d::CapsuleShape *, NULL]
+    bt: [btCapsuleShape *, NULL]
 
 ConvexColliderShape @dirtyable:
   meshName: std::string
-  _cpp_only:
-    shapeReact: [reactphysics3d::ConvexMeshShape *, NULL]
 
 ConcaveColliderShape @dirtyable:
   meshName: std::string
-  _cpp_only:
-    shapeReact: [reactphysics3d::ConcaveMeshShape *, NULL]
 
