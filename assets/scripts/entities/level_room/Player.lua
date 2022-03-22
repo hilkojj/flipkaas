@@ -25,7 +25,8 @@ function create(player)
         RigidBody {
             gravity = vec3(0),
             collider = Collider {
-                bounciness = .5
+                bounciness = .5,
+                frictionCoefficent = 1
             }
         },
         CapsuleColliderShape {

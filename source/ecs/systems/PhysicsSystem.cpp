@@ -139,7 +139,7 @@ void readdBodyForChange(entt::registry &reg, entt::entity e, BulletStuff *bullet
 
 void PhysicsSystem::init(EntityEngine* engine)
 {
-    auto room = dynamic_cast<Room3D *>(engine);
+    room = dynamic_cast<Room3D *>(engine);
     if (!room) throw gu_err("engine is not a room");
 
     bullet = new BulletStuff;
@@ -266,6 +266,55 @@ bool PhysicsSystem::loadColliderMeshesFromGLTF(const char *path, bool force, boo
     modelFileLoadTime[path] = glfwGetTime();
     */
     return true;
+}
+
+void PhysicsSystem::rayTest(const vec3 &from, const vec3 &to, const RayHitCallback &cb, int mask, int category)
+{
+    if (!room)
+        throw gu_err("Not initialized!");
+
+    auto btFrom = vec3ToBt(from);
+    auto btTo = vec3ToBt(to);
+
+    /*
+    struct Callback : public btCollisionWorld::ClosestRayResultCallback
+    {
+        const RayHitCallback &cb;
+        const entt::registry &reg;
+
+        Callback(const entt::registry &reg, const RayHitCallback &cb, btVector3 &from, btVector3 &to) : reg(reg), cb(cb), ClosestRayResultCallback(from, to)
+        {}
+
+        virtual btScalar addSingleResult(btCollisionWorld::LocalRayResult &rayResult, bool normalInWorldSpace)
+        {
+            auto hF = btCollisionWorld::ClosestRayResultCallback::addSingleResult(rayResult, normalInWorldSpace);
+
+            entt::entity e = entt::entity(rayResult.m_collisionObject->getUserIndex());
+
+            if (!reg.valid(e))
+                throw gu_err("Hit an object using a raycast, but its UserIndex does not return a valid entity!");
+
+            return cb(e, btToVec3(m_hitPointWorld), btToVec3(m_hitNormalWorld)) ? ; // return 1 to skip
+        }
+    } btCallback(room->entities, cb, btFrom, btTo);
+
+    */
+    btCollisionWorld::ClosestRayResultCallback btCallback(btFrom, btTo);
+
+    btCallback.m_collisionFilterGroup = category;
+    btCallback.m_collisionFilterMask = mask;
+
+    bullet->world.rayTest(btFrom, btTo, btCallback);
+
+    if (btCallback.hasHit())
+    {
+        entt::entity e = entt::entity(btCallback.m_collisionObject->getUserIndex());
+
+        if (!room->entities.valid(e))
+            throw gu_err("Hit an object using a raycast, but its UserIndex does not return a valid entity!");
+
+        cb(e, btToVec3(btCallback.m_hitPointWorld), btToVec3(btCallback.m_hitNormalWorld));
+    }
 }
 
 void PhysicsSystem::debugDraw(const std::function<void(const vec3 &a, const vec3 &b, const vec3 &color)> &lineCallback)
@@ -400,14 +449,19 @@ void PhysicsSystem::update(double deltaTime, EntityEngine* room)
         if (body.allowExternalTransform)
         {
             auto posDiff = transform.position - body.prevPosition;
-            auto rotDiff = transform.rotation - body.prevRotation;
+            auto rotDiff = transform.rotation * inverse(body.prevRotation);
+            bool rotDirty = transform.rotation != body.prevRotation;
 
             transform.position = btToVec3(btTrans.getOrigin()) + posDiff;
-            transform.rotation = btToQuat(btTrans.getRotation()) + rotDiff;
+            transform.rotation = rotDiff * btToQuat(btTrans.getRotation());
 
-            if (posDiff != mu::ZERO_3  || rotDiff != quat(0, 0, 0, 0))
+            if (posDiff != mu::ZERO_3)
             {
                 btTrans.setOrigin(vec3ToBt(transform.position));
+                body.bt->activate();
+            }
+            if (rotDirty)
+            {
                 btTrans.setRotation(quatToBt(transform.rotation));
                 body.bt->activate();
             }
@@ -464,6 +518,7 @@ void PhysicsSystem::onRigidBodyAdded(entt::registry &reg, entt::entity e)
         new btDefaultMotionState(btTrans),
         &bullet->emptyShape
     ));
+    body.bt->setUserIndex(int(e));
 
     if (reg.has<BoxColliderShape>(e))
         onBoxAdded(reg, e);

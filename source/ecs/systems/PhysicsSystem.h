@@ -8,12 +8,16 @@
 
 struct BulletStuff;
 
+using RayHitCallback = std::function<void(entt::entity, const vec3 &hitPoint, const vec3 &normal)>;
+
 class PhysicsSystem : public EntitySystem
 {
 public:
     using EntitySystem::EntitySystem;
 
     bool loadColliderMeshesFromGLTF(const char *path, bool force = false, bool convex = false);
+
+    void rayTest(const vec3 &from, const vec3 &to, const RayHitCallback &, int mask=-1, int category=-1);
 
     void debugDraw(const std::function<void(const vec3 &a, const vec3 &b, const vec3 &color)> &lineCallback);
 
@@ -26,6 +30,7 @@ protected:
 
 private:
 
+    Room3D *room = NULL;
     BulletStuff *bullet = NULL;
 
     void onRigidBodyRemoved(entt::registry &, entt::entity);

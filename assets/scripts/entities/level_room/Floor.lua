@@ -13,7 +13,8 @@ function create(floor)
         RigidBody {
             mass = 0,
             collider = Collider {
-                bounciness = 1
+                bounciness = 1,
+                frictionCoefficent = 1
             }
         },
         BoxColliderShape {
