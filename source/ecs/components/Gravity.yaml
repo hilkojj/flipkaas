@@ -1,0 +1,15 @@
+config:
+  hpp_incl:
+    - functional
+
+GravityField:
+  priority: uint8
+
+SphereGravityFunction:
+  test: bool
+
+GravityFieldAffected:
+  gravityScale: [float, 10]
+  defaultGravity: [vec3, vec3(0)]
+  _cpp_only:
+    dirPerPriority: std::vector<vec3>

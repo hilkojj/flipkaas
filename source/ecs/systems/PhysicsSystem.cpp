@@ -5,6 +5,9 @@
 #include <btBulletCollisionCommon.h>
 #include <BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolver.h>
 #include <BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h>
+#include <BulletCollision/CollisionDispatch/btGhostObject.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 struct BulletStuff
 {
@@ -22,17 +25,27 @@ struct BulletStuff
 
     btEmptyShape emptyShape;
 
+    std::map<std::string, btConvexHullShape *> convexMeshes;
+    std::map<std::string, btConcaveShape *> concaveMeshes;
+    std::vector<btTriangleMesh *> concaveMeshInterfaces;
+
     BulletStuff()
         :
         dispatcher(&collisionConfig),
         world(&dispatcher, &overlappingPairCache, &solver, &collisionConfig)
     {
-
         world.setGravity(btVector3(0, 0, 0));
+        world.getBroadphase()->getOverlappingPairCache()->setInternalGhostPairCallback(new btGhostPairCallback);
     }
 
     ~BulletStuff()
     {
+        for (auto &[name, ptr] : convexMeshes)
+            delete ptr;
+        for (auto &[name, ptr] : concaveMeshes)
+            delete ptr;
+        for (auto ptr : concaveMeshInterfaces)
+            delete ptr;
     }
 };
 
@@ -67,12 +80,32 @@ void syncCollider(btCollisionObject *obj, Collider &collider)
         obj->setFriction(collider.frictionCoefficent);
     }
 
+    if (collider.dirty<&Collider::registerCollisions>())
+    {
+        obj->setUserIndex2(collider.registerCollisions);
+    }
+
     // if (collider.dirty<&Collider::bodyOffsetTranslation>() || collider.dirty<&Collider::bodyOffsetRotation>())
     // {
         // TODO: use btCompoundShape for this
         // https://pybullet.org/Bullet/phpBB3/viewtopic.php?t=9546
     // }
     collider.undirtAll();
+}
+
+void syncGhostBody(GhostBody &body, BulletStuff *bullet)
+{
+    assert(body.bt);
+    if (body.collider.anyDirty())
+        syncCollider(body.bt, body.collider);
+
+    if (!body.anyDirty())
+        return;
+
+    // something is dirty
+    //body.bt->activate();
+
+    body.undirtAll();
 }
 
 void syncRigidBody(RigidBody &body, BulletStuff *bullet)
@@ -101,9 +134,15 @@ void syncRigidBody(RigidBody &body, BulletStuff *bullet)
     if (body.dirty<&RigidBody::mass>())
     {
         btVector3 inertia;
-        if (!dynamic_cast<btEmptyShape *>(body.bt->getCollisionShape()))
-            body.bt->getCollisionShape()->calculateLocalInertia(body.mass, inertia);
-
+        if (dynamic_cast<btTriangleMeshShape *>(body.bt->getCollisionShape()))
+        {
+            body.mass = 0;
+        }
+        else
+        {
+            if (!dynamic_cast<btEmptyShape *>(body.bt->getCollisionShape()))
+                body.bt->getCollisionShape()->calculateLocalInertia(body.mass, inertia);
+        }
         body.bt->setMassProps(body.mass, inertia);
     }
 
@@ -113,6 +152,15 @@ void syncRigidBody(RigidBody &body, BulletStuff *bullet)
         body.bt->setLinearFactor(vec3ToBt(body.linearAxisFactor));
 
     body.undirtAll();
+}
+
+void addGhostBody(BulletStuff *bullet, GhostBody *gb)
+{
+    bullet->world.addCollisionObject(gb->bt, gb->collider.collisionCategoryBits, gb->collider.collideWithMaskBits);
+    gb->bedirtAll();
+    gb->collider.bedirtAll();
+    syncGhostBody(*gb, bullet);
+    gb->bt->activate();
 }
 
 void addRigidBody(BulletStuff *bullet, RigidBody *rb)
@@ -142,13 +190,15 @@ void PhysicsSystem::init(EntityEngine* engine)
     room = dynamic_cast<Room3D *>(engine);
     if (!room) throw gu_err("engine is not a room");
 
-    bullet = new BulletStuff;
-
     updateFrequency = 60;
 
     engine->entities.on_destroy<RigidBody>()				.connect<&PhysicsSystem::onRigidBodyRemoved>(this);
     engine->entities.on_replace<RigidBody>()				.connect<&PhysicsSystem::onRigidBodyRemoved>(this);
     engine->entities.on_construct<RigidBody>()				.connect<&PhysicsSystem::onRigidBodyAdded>(this);
+
+    engine->entities.on_destroy<GhostBody>()                .connect<&PhysicsSystem::onGhostBodyRemoved>(this);
+    engine->entities.on_replace<GhostBody>()                .connect<&PhysicsSystem::onGhostBodyRemoved>(this);
+    engine->entities.on_construct<GhostBody>()              .connect<&PhysicsSystem::onGhostBodyAdded>(this);
 
     // only allow a single type of shape:
     engine->entities.on_construct<BoxColliderShape>()		.connect<&entt::registry::remove_if_exists<SphereColliderShape, CapsuleColliderShape, ConvexColliderShape, ConcaveColliderShape>>();
@@ -178,93 +228,101 @@ void PhysicsSystem::init(EntityEngine* engine)
 }
 
 
-bool PhysicsSystem::loadColliderMeshesFromGLTF(const char *path, bool force, bool convex)
+PhysicsSystem::PhysicsSystem(std::string name) : EntitySystem(name)
 {
-    /*
-    if (!force && modelFileLoadTime.find(path) != modelFileLoadTime.end())
-        return false;
+    bullet = new BulletStuff;
+}
 
-    GltfModelLoader loader(VertAttributes().add_(VertAttributes::POSITION));
+bool PhysicsSystem::loadColliderMeshesFromObj(const char *path, bool convex)
+{
+    FILE *file = fopen(path, "r");
+    if (!file)
+        throw gu_err("File " + std::string(path) + " cannot be opened!");
+    
+    char objName[128];
+    btConvexHullShape *convexShape = NULL;
+    btTriangleMesh *concaveMeshInterface = NULL;
+    int nrOfVertsBeforeThisObj = 0;
+    int nrOfVertsInThisObj = 0;
 
-    if (stringEndsWith(path, ".glb"))
-        loader.fromBinaryFile(path);
-    else
-        loader.fromASCIIFile(path);
-
-    for (auto &mesh : loader.meshes)
-        colliderMeshes[mesh->name] = mesh;
-
-    if (!convex)
+    while (true)
     {
-        for (auto &mesh : loader.meshes)
+
+        char lineHeader[128] = { 0 };
+
+        // read the first word of the line
+        int res = fscanf(file, "%127s", lineHeader);
+        bool eof = res == EOF;
+        bool newObj = !eof && strcmp(lineHeader, "o") == 0;
+
+        if (eof || newObj)
         {
-            auto triMesh = reactCommon.createTriangleMesh();
-
-            for (auto &part : mesh->parts)
+            if (concaveMeshInterface != NULL)
             {
-                if (mesh->vertices.empty())
-                    continue;
+                bullet->concaveMeshes[objName] = new btBvhTriangleMeshShape(concaveMeshInterface, true, true);
+                bullet->concaveMeshInterfaces.push_back(concaveMeshInterface);
+                
+            }   
 
-                if (part.indices.empty())
-                    continue;
+            nrOfVertsBeforeThisObj += nrOfVertsInThisObj;
+            nrOfVertsInThisObj = 0;
+        }
 
-                reactphysics3d::TriangleVertexArray *tris = new reactphysics3d::TriangleVertexArray(
-                    mesh->nrOfVertices(),
-                    &mesh->vertices.at(0),
-                    VertAttributes::POSITION.byteSize,
-                    part.indices.size() / 3,
-                    &part.indices.at(0),
-                    3 * sizeof(unsigned short),
-                    reactphysics3d::TriangleVertexArray::VertexDataType::VERTEX_FLOAT_TYPE,
-                    reactphysics3d::TriangleVertexArray::IndexDataType::INDEX_SHORT_TYPE
-                );
-                reactTris.push_back(tris);
-                triMesh->addSubpart(tris);
+        if (eof)
+            break; // EOF = End Of File. Quit the loop.
+
+        if (newObj && fscanf(file, " %127s\n", &objName))
+        {
+            if (convex)
+            {
+                convexShape = new btConvexHullShape;
+                bullet->convexMeshes[objName] = convexShape;
             }
+            else
+            {
+                concaveMeshInterface = new btTriangleMesh;
+            }
+        }
+        else if (strcmp(lineHeader, "v") == 0)
+        {
+            vec3 vert;
+            if (fscanf(file, " %f %f %f\n", &vert.x, &vert.y, &vert.z) == 3)
+            {
+                nrOfVertsInThisObj++;
+                if (convexShape)
+                    convexShape->addPoint(vec3ToBt(vert));
+                else
+                    concaveMeshInterface->findOrAddVertex(vec3ToBt(vert), false);
+            }
+        }
+        else if (!convexShape && strcmp(lineHeader, "f") == 0)
+        {
+            ivec4 indices;
+            int scan = fscanf(file, " %d %d %d %d\n", &indices.x, &indices.y, &indices.z, &indices.w);
+            if (scan == 4)
+                throw gu_err("Concave collider meshes must be triangulated! File: " + std::string(path));
+            if (scan == 3)
+            {
+                if (concaveMeshInterface->getIndexedMeshArray().size() == 0)
+                    throw gu_err("Object '" + std::string(objName) + "' has a face but no vertices (?). File: " + std::string(path));
 
-            reactConcaveMeshes[mesh->name] = reactCommon.createConcaveMeshShape(triMesh);
+                indices -= nrOfVertsBeforeThisObj;
+                indices -= 1; // .obj starts counting at 1.
+
+                if (any(lessThan(ivec3(indices), ivec3(0))))
+                {
+                    throw gu_err("Object '" + std::string(objName) + "' has a face with one or more indices referencing vertices from a previous object. File: " + std::string(path));
+                }
+
+                if (any(greaterThanEqual(ivec3(indices), ivec3(concaveMeshInterface->getIndexedMeshArray().at(0).m_numVertices))))
+                {
+                    throw gu_err("Object '" + std::string(objName) + "' has a face with one or more indices > number of verticies. File: " + std::string(path));
+                }
+                concaveMeshInterface->addTriangleIndices(indices.x, indices.y, indices.z);
+            }
         }
     }
-    else
-    {
-        for (auto &mesh : loader.meshes)
-        {
-            if (mesh->vertices.empty())
-                continue;
-            if (mesh->parts.empty())
-                continue;
-            auto &part = mesh->parts[0];
-            if (part.indices.empty())
-                continue;
-
-            auto &faces = polygonFaces.emplace_front();
-            faces.reserve(part.indices.size() / 3);
-
-            for (uint i = 0; i < part.indices.size(); i += 3)
-            {
-                faces.emplace_back();
-                faces.back().indexBase = i;
-                faces.back().nbVertices = 3;
-            }
-
-            auto polys = new reactphysics3d::PolygonVertexArray(
-                mesh->nrOfVertices(),
-                &mesh->vertices.at(0),
-                VertAttributes::POSITION.byteSize,
-                &part.indices.at(0),
-                sizeof(unsigned short),
-                faces.size(),
-                &faces.at(0),
-                reactphysics3d::PolygonVertexArray::VertexDataType::VERTEX_FLOAT_TYPE,
-                reactphysics3d::PolygonVertexArray::IndexDataType::INDEX_SHORT_TYPE
-            );
-            auto polyMesh = reactCommon.createPolyhedronMesh(polys);
-            reactConvexMeshes[mesh->name] = reactCommon.createConvexMeshShape(polyMesh);
-        }
-    }
-
-    modelFileLoadTime[path] = glfwGetTime();
-    */
+    fclose(file);
     return true;
 }
 
@@ -408,37 +466,141 @@ void PhysicsSystem::update(double deltaTime, EntityEngine* room)
 
         shape.undirtAll();
     });
-    /*
-    room->entities.view<ConvexColliderShape, Collider>().each([&](auto e, ConvexColliderShape &shape, Collider &collider) {
-        if (!shape.anyDirty()) return;
-
-        if (shape.dirty<&ConvexColliderShape::meshName>())
+    room->entities.view<ConvexColliderShape>().each([&](auto e, ConvexColliderShape &shape) {
+        if (shape.undirt<&ConvexColliderShape::meshName>())
         {
             onConvexRemoved(room->entities, e);
             onConvexAdded(room->entities, e);
         }
-
-        wakeCollidersRigidBody(collider, room->entities);
-        shape.undirtAll();
     });
-    room->entities.view<ConcaveColliderShape, Collider>().each([&](auto e, ConcaveColliderShape &shape, Collider &collider) {
-        if (!shape.anyDirty()) return;
-
-        if (shape.dirty<&ConcaveColliderShape::meshName>())
+    room->entities.view<ConcaveColliderShape>().each([&](auto e, ConcaveColliderShape &shape) {
+        if (shape.undirt<&ConcaveColliderShape::meshName>())
         {
             onConcaveRemoved(room->entities, e);
             onConcaveAdded(room->entities, e);
         }
-
-        wakeCollidersRigidBody(collider, room->entities);
-        shape.undirtAll();
     });
-    */
-
+    
     {
         gu::profiler::Zone z("bullet");
         bullet->world.stepSimulation(updateFrequency ? 1.f / updateFrequency : deltaTime);
     }
+
+
+
+    {
+        std::map<std::pair<entt::entity, entt::entity>, std::shared_ptr<Collision>> toEmit;
+
+        int nrOfManifolds = bullet->dispatcher.getNumManifolds();
+
+        for (int i = 0; i < nrOfManifolds; i++)
+        {
+            auto *manifold = bullet->dispatcher.getManifoldByIndexInternal(i);
+            if (manifold->getNumContacts() <= 0)
+                continue;
+
+            const btCollisionObject *obj[2] {
+                manifold->getBody0(),
+                manifold->getBody1()
+            };
+
+            bvec2 objRegisters(obj[0]->getUserIndex2(), obj[1]->getUserIndex2());
+
+            if (!any(objRegisters))
+                continue;
+
+            entt::entity e[2]{
+                entt::entity(obj[0]->getUserIndex()),
+                entt::entity(obj[1]->getUserIndex())
+            };
+
+            if (!room->entities.valid(e[0]) || !room->entities.valid(e[1]))
+            {
+                std::cerr << "Collision manifold between one or two invalid entities: " << int(e[0]) << " & " << int(e[1]) << std::endl;
+                continue;
+            }
+
+            Collider *colliders[2];
+            for (int j = 0; j < 2; j++)
+            {
+                switch (obj[j]->getInternalType())
+                {
+                    case btCollisionObject::CollisionObjectTypes::CO_RIGID_BODY:
+                        colliders[j] = &room->entities.get<RigidBody>(e[j]).collider;
+                        break;
+                    case btCollisionObject::CollisionObjectTypes::CO_GHOST_OBJECT:
+                        colliders[j] = &room->entities.get<GhostBody>(e[j]).collider;
+                        break;
+                    default:
+                        throw gu_err("Collision object type not implemented!");
+                        break;
+                }
+            }
+            //assert(objRegisters[0] == colliders[0]->registerCollisions);  fails because this is synced after this.
+            //assert(objRegisters[1] == colliders[1]->registerCollisions);
+
+            for (int j = 0; j < 2; j++)
+            {
+                if (!objRegisters[j])
+                    continue;
+
+                auto otherE = e[j ^ 1];
+
+                std::shared_ptr<Collision> col;
+
+                auto it = colliders[j]->collisions.find(otherE);
+                if (it == colliders[j]->collisions.end())
+                {
+                    col = colliders[j]->collisions[otherE] = std::make_shared<Collision>();
+                    col->otherEntity = otherE;
+
+                    // emit event
+                    toEmit[{e[j], otherE}] = col;
+                }
+                else
+                {
+                    col = it->second;
+                    col->duration += deltaTime;
+                    col->hasEndedTest = false;
+                }
+                col->contactPoints.clear(); // todo: could be more manifolds???
+
+                for (int p = 0; p < manifold->getNumContacts(); p++)
+                {
+                    const btManifoldPoint &pt = manifold->getContactPoint(p);
+                    
+                    col->contactPoints.push_back(btToVec3(j == 0 ? pt.getPositionWorldOnA() : pt.getPositionWorldOnB()));
+                    // todo: lots of interesting stuff like normals
+                }
+            }
+        }
+
+        for (auto &[pair, col] : toEmit)
+        {
+            if (room->entities.valid(pair.first) && room->entities.valid(pair.second))
+                room->emitEntityEvent<Collision>(pair.first, *col.get());
+        }
+    }
+
+    std::map<std::pair<entt::entity, entt::entity>, std::shared_ptr<Collision>> collisionsEndedToEmit;
+
+    auto updateColliderCollisions = [&](entt::entity e, Collider &collider) {
+        if (collider.registerCollisions)
+        {
+            std::vector<entt::entity> endedCollisions;
+            for (auto &[otherE, col] : collider.collisions)
+            {
+                if (col->hasEndedTest)
+                {
+                    collisionsEndedToEmit[{e, otherE}] = col;
+                    endedCollisions.push_back(otherE);
+                }
+                col->hasEndedTest = true;
+            }
+            for (auto endedCol : endedCollisions)
+                collider.collisions.erase(endedCol);
+        }
+    };
 
     room->entities.view<Transform, RigidBody>().each([&](auto e, Transform &transform, RigidBody &body) {
 
@@ -474,14 +636,41 @@ void PhysicsSystem::update(double deltaTime, EntityEngine* room)
             transform.rotation = btToQuat(btTrans.getRotation());
         }
 
-        // sync component settings with bullet:
+        // sync component settings with bullet: // TODO: this should probably also work without Transform.
         if (body.collider.dirty<&Collider::collisionCategoryBits>() || body.collider.dirty<&Collider::collideWithMaskBits>())
         {
             bullet->world.removeRigidBody(body.bt);
             addRigidBody(bullet, &body);
         }
         else syncRigidBody(body, bullet);
+
+        updateColliderCollisions(e, body.collider);
     });
+
+    room->entities.view<Transform, GhostBody>().each([&](auto e, Transform &transform, GhostBody &body) {
+
+        assert(body.bt);
+        // sync transform:
+        auto &btTrans = body.bt->getWorldTransform();
+        btTrans.setOrigin(vec3ToBt(transform.position));
+        btTrans.setRotation(quatToBt(transform.rotation));
+
+        // sync component settings with bullet:
+        if (body.collider.dirty<&Collider::collisionCategoryBits>() || body.collider.dirty<&Collider::collideWithMaskBits>())
+        {
+            bullet->world.removeCollisionObject(body.bt);
+            addGhostBody(bullet, &body);
+        }
+        else syncGhostBody(body, bullet);
+
+        updateColliderCollisions(e, body.collider);
+    });
+
+    for (auto &[pair, col] : collisionsEndedToEmit)
+    {
+        if (room->entities.valid(pair.first))// && room->entities.valid(pair.second))
+            room->emitEntityEvent<Collision>(pair.first, *col.get(), "CollisionEnded");
+    }
 }
 
 void PhysicsSystem::onRigidBodyRemoved(entt::registry &reg, entt::entity e)
@@ -498,6 +687,8 @@ void PhysicsSystem::onRigidBodyRemoved(entt::registry &reg, entt::entity e)
 
 void PhysicsSystem::onRigidBodyAdded(entt::registry &reg, entt::entity e)
 {
+    reg.remove_if_exists<GhostBody>(e);
+
     auto &body = reg.get<RigidBody>(e);
     
     if (body.bt)
@@ -534,15 +725,70 @@ void PhysicsSystem::onRigidBodyAdded(entt::registry &reg, entt::entity e)
         addRigidBody(bullet, &body);
 }
 
+void PhysicsSystem::onGhostBodyRemoved(entt::registry &reg, entt::entity e)
+{
+    auto &body = reg.get<GhostBody>(e);
+    assert(body.bt);
+
+    bullet->world.removeCollisionObject(body.bt);
+
+    delete body.bt;
+    body.bt = NULL;
+}
+
+void PhysicsSystem::onGhostBodyAdded(entt::registry &reg, entt::entity e)
+{
+    reg.remove_if_exists<RigidBody>(e);
+
+    auto &body = reg.get<GhostBody>(e);
+
+    if (body.bt)
+        throw gu_err("This ghost body already has a bullet instance.");
+
+    body.bt = new btGhostObject;
+    body.bt->setUserIndex(int(e));
+    body.bt->setCollisionShape(&bullet->emptyShape);
+    body.bt->setCollisionFlags(body.bt->getCollisionFlags() | btCollisionObject::CollisionFlags::CF_NO_CONTACT_RESPONSE);
+
+    btTransform btTrans = btTransform::getIdentity();
+    if (auto transform = reg.try_get<Transform>(e))
+    {
+        btTrans.setOrigin(vec3ToBt(transform->position));
+        btTrans.setRotation(quatToBt(transform->rotation));
+        body.bt->setWorldTransform(btTrans);
+    }
+
+    if (reg.has<BoxColliderShape>(e))
+        onBoxAdded(reg, e);
+    else if (reg.has<SphereColliderShape>(e))
+        onSphereAdded(reg, e);
+    else if (reg.has<CapsuleColliderShape>(e))
+        onCapsuleAdded(reg, e);
+    else if (reg.has<ConvexColliderShape>(e))
+        onConvexAdded(reg, e);
+    else if (reg.has<ConcaveColliderShape>(e))
+        onConcaveAdded(reg, e);
+    else
+        addGhostBody(bullet, &body);
+}
+
 void onShapeAdded(entt::registry &reg, entt::entity e, btCollisionShape *shape, BulletStuff *bullet)
 {
-    auto rigidBody = reg.try_get<RigidBody>(e);
-    if (!rigidBody) return;
-
-    assert(rigidBody->bt);
-    readdBodyForChange(reg, e, bullet, [&] {
-        rigidBody->bt->setCollisionShape(shape);
-    });
+    if (auto rigidBody = reg.try_get<RigidBody>(e))
+    {
+        assert(rigidBody->bt);
+        readdBodyForChange(reg, e, bullet, [&] {
+            rigidBody->bt->setCollisionShape(shape);
+        });
+    }
+    else if (auto ghostBody = reg.try_get<GhostBody>(e))
+    {
+        assert(ghostBody->bt);
+        bullet->world.removeCollisionObject(ghostBody->bt);
+        ghostBody->bt->setCollisionShape(shape);
+        addGhostBody(bullet, ghostBody);
+    }
+    
 }
 
 void PhysicsSystem::onBoxAdded(entt::registry &reg, entt::entity e)
@@ -575,52 +821,53 @@ void PhysicsSystem::onCapsuleAdded(entt::registry &reg, entt::entity e)
 void PhysicsSystem::onConvexAdded(entt::registry &reg, entt::entity e)
 {
     auto &convex = reg.get<ConvexColliderShape>(e);
-    /*
-    
-    if (!convex.shapeReact)
+
+    auto it = bullet->convexMeshes.find(convex.meshName);
+
+    if (it != bullet->convexMeshes.end())
     {
-        auto it = reactConvexMeshes.find(convex.meshName);
-        if (it != reactConvexMeshes.end())
-        {
-            convex.shapeReact = it->second;
-            onShapeAdded(reg, e, convex.shapeReact);
-        }
+        convex.bt = it->second;
+        onShapeAdded(reg, e, convex.bt, bullet);
     }
-    */
 }
 
 void PhysicsSystem::onConcaveAdded(entt::registry &reg, entt::entity e)
 {
     auto &concave = reg.get<ConcaveColliderShape>(e);
-    /*
     
-    if (!concave.shapeReact)
+    auto it = bullet->concaveMeshes.find(concave.meshName);
+
+    if (it != bullet->concaveMeshes.end())
     {
-        auto it = reactConcaveMeshes.find(concave.meshName);
-        if (it != reactConcaveMeshes.end())
-        {
-            concave.shapeReact = it->second;
-            onShapeAdded(reg, e, concave.shapeReact);
-        }
+        concave.bt = it->second;
+        onShapeAdded(reg, e, concave.bt, bullet);
     }
-    */
 }
 
 void onShapeRemoved(entt::registry &reg, entt::entity e, btCollisionShape *shape, BulletStuff *bullet)
 {
-    auto rigidBody = reg.try_get<RigidBody>(e);
-    if (!rigidBody) return;
-
-    assert(rigidBody->bt);
-
-    if (rigidBody->bt->getCollisionShape() == shape)
+    if (auto rigidBody = reg.try_get<RigidBody>(e))
     {
-        readdBodyForChange(reg, e, bullet, [&] {
-            rigidBody->bt->setCollisionShape(&bullet->emptyShape);
-        });
-        rigidBody->bt->activate();
+        assert(rigidBody->bt);
+
+        if (rigidBody->bt->getCollisionShape() == shape)
+        {
+            readdBodyForChange(reg, e, bullet, [&] {
+                rigidBody->bt->setCollisionShape(&bullet->emptyShape);
+             });
+            rigidBody->bt->activate();
+        }
     }
-    
+    else if (auto ghostBody = reg.try_get<GhostBody>(e))
+    {
+        assert(ghostBody->bt);
+        if (ghostBody->bt->getCollisionShape() == shape)
+        {
+            bullet->world.removeCollisionObject(ghostBody->bt);
+            ghostBody->bt->setCollisionShape(&bullet->emptyShape);
+            addGhostBody(bullet, ghostBody);
+        }
+    }
 }
 
 void PhysicsSystem::onBoxRemoved(entt::registry &reg, entt::entity e)
@@ -653,19 +900,15 @@ void PhysicsSystem::onCapsuleRemoved(entt::registry &reg, entt::entity e)
 void PhysicsSystem::onConvexRemoved(entt::registry &reg, entt::entity e)
 {
     auto &convex = reg.get<ConvexColliderShape>(e);
-    /*
-    if (convex.shapeReact == NULL) return;
-    onShapeRemoved(reg, e, convex.shapeReact);
-    convex.shapeReact = NULL;
-    */
+    if (convex.bt == NULL) return;
+    onShapeRemoved(reg, e, convex.bt, bullet);
+    convex.bt = NULL;
 }
 
 void PhysicsSystem::onConcaveRemoved(entt::registry &reg, entt::entity e)
 {
     auto &concave = reg.get<ConcaveColliderShape>(e);
-    /*
-    if (concave.shapeReact == NULL) return;
-    onShapeRemoved(reg, e, concave.shapeReact);
-    concave.shapeReact = NULL;
-    */
+    if (concave.bt == NULL) return;
+    onShapeRemoved(reg, e, concave.bt, bullet);
+    concave.bt = NULL;
 }

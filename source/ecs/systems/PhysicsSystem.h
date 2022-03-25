@@ -13,9 +13,9 @@ using RayHitCallback = std::function<void(entt::entity, const vec3 &hitPoint, co
 class PhysicsSystem : public EntitySystem
 {
 public:
-    using EntitySystem::EntitySystem;
+    PhysicsSystem(std::string name);
 
-    bool loadColliderMeshesFromGLTF(const char *path, bool force = false, bool convex = false);
+    bool loadColliderMeshesFromObj(const char *path, bool convex = false);
 
     void rayTest(const vec3 &from, const vec3 &to, const RayHitCallback &, int mask=-1, int category=-1);
 
@@ -35,6 +35,9 @@ private:
 
     void onRigidBodyRemoved(entt::registry &, entt::entity);
     void onRigidBodyAdded(entt::registry &, entt::entity);
+
+    void onGhostBodyRemoved(entt::registry &, entt::entity);
+    void onGhostBodyAdded(entt::registry &, entt::entity);
 
     void onBoxAdded(entt::registry &, entt::entity);
     void onSphereAdded(entt::registry &, entt::entity);

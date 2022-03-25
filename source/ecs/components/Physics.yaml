@@ -1,12 +1,21 @@
 config:
   fwd_decl:
     - btRigidBody
+    - btGhostObject
     - btBoxShape
     - btSphereShape
     - btCapsuleShape
     - btCompoundShape
+    - btConvexHullShape
+    - btConcaveShape
 
-      
+Collision @not_a_component:
+  otherEntity: entt::entity
+  contactPoints: std::vector<vec3>
+  duration: float
+  _cpp_only:
+    hasEndedTest: bool
+
 Collider @dirtyable @not_a_component:
   bounciness: float
   frictionCoefficent: float
@@ -14,8 +23,13 @@ Collider @dirtyable @not_a_component:
   collisionCategoryBits: [int, 1]
   collideWithMaskBits: [int, 1]
 
+  registerCollisions: bool
+
   # bodyOffsetTranslation: vec3
   # bodyOffsetRotation: [quat, "quat(1, 0, 0, 0)"]
+
+  _cpp_only:
+    collisions: std::map<entt::entity, std::shared_ptr<Collision>>
 
 RigidBody @dirtyable:
   gravity: [vec3, "vec3(0, -10, 0)"]
@@ -39,6 +53,12 @@ RigidBody @dirtyable:
     bt: [btRigidBody *, NULL]
     # TODO: add for body offsets & multiple shaped per body: btCompondShape: [btCompoundShape *, NULL]
 
+GhostBody @dirtyable:
+  collider: Collider
+  testOriginInside: bool
+  _cpp_only:
+    bt: [btGhostObject *, NULL]
+
 BoxColliderShape @dirtyable:
   halfExtents: [vec3, vec3(1)]
   _cpp_only:
@@ -57,7 +77,10 @@ CapsuleColliderShape @dirtyable:
 
 ConvexColliderShape @dirtyable:
   meshName: std::string
+  _cpp_only:
+    bt: [btConvexHullShape *, NULL]
 
 ConcaveColliderShape @dirtyable:
   meshName: std::string
-
+  _cpp_only:
+    bt: [btConcaveShape *, NULL]

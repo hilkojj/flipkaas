@@ -18,6 +18,20 @@ class Room3D : public Room
 
   public:
 
+    struct ModelInstances
+    {
+        std::vector<SharedMesh> meshes; // keep a reference to the meshes, to keep the vertBuffers alive, so that the pointers in the following map stay valid.
+        std::map<VertBuffer *, int> vertDataIdPerBuffer;
+
+        VertData transforms = VertData(VertAttributes()
+            .add_(VertAttributes::TRANSFORM_COL_A)
+            .add_(VertAttributes::TRANSFORM_COL_B)
+            .add_(VertAttributes::TRANSFORM_COL_C)
+            .add_(VertAttributes::TRANSFORM_COL_D), std::vector<unsigned char>());
+        
+        ~ModelInstances();
+    };
+
     Camera *camera = NULL;
     entt::entity cameraEntity = entt::null;
 

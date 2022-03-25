@@ -1,11 +1,19 @@
 config:
   hpp_incl:
     - graphics/3d/armature.h
+    - ../level/room/Room3D.h
+    - set
 
 
 RenderModel:
   modelName: std::string
   visibilityMask: [uint, 1]
+
+InstancedRendering @dirtyable:
+  transformEntities: std::set<entt::entity>
+  staticTransforms: [bool, false]
+  _cpp_only:
+    data: Room3D::ModelInstances
 
 PlayAnimation @not_a_component @json_with_keys:
   name: std::string

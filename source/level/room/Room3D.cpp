@@ -10,6 +10,7 @@
 #include "../../game/Game.h"
 #include "../../ecs/systems/ArmatureAnimationSystem.h"
 #include "../../ecs/systems/PhysicsSystem.h"
+#include "../../ecs/systems/GravitySystem.h"
 
 Room3D::Room3D()
 {
@@ -28,6 +29,7 @@ Room3D::Room3D()
 
     addSystem(new ArmatureAnimationSystem("Armature animations"));
     addSystem(new PhysicsSystem("Physics"));
+    addSystem(new GravitySystem("Gravity fields"));
 }
 
 vec3 Room3D::getPosition(entt::entity e) const
@@ -57,10 +59,10 @@ void Room3D::initializeLuaEnvironment()
     luaEnvironment["loadRiggedModels"] = [&] (const char *path, bool force) {
         loadModels(path, force, &uploadingRiggedTo, loadedRiggedMeshAttributes);
     };
-    luaEnvironment["loadColliderMeshes"] = [&](const char *path, bool force, bool convex) {
+    luaEnvironment["loadColliderMeshes"] = [&](const char *path, bool convex) {
         if (auto ps = tryFindSystem<PhysicsSystem>())
         {
-            return ps->loadColliderMeshesFromGLTF(path, force, convex);
+            return ps->loadColliderMeshesFromObj(path, convex);
         }
         else throw gu_err("This room does not have a " + std::string(typeid(PhysicsSystem).name()));
     };
@@ -236,4 +238,10 @@ void Room3D::toJson(json &j)
     Room::toJson(j);
     if (environmentMap.isSet())
         j["environmentMap"] = environmentMap.getLoadedAsset().shortPath;
+}
+
+Room3D::ModelInstances::~ModelInstances()
+{
+    for (auto &[vertBuffer, vertDataId] : vertDataIdPerBuffer)
+        vertBuffer->deletePerInstanceData(vertDataId);
 }

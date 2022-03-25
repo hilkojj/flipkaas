@@ -1,7 +1,9 @@
 
+collisionMasks = include("scripts/entities/level_room/_collision_masks")
+
 loadRiggedModels("assets/models/cubeman.glb", false)
-loadColliderMeshes("assets/models/test_concave_colliders.glb", false, false)
-loadColliderMeshes("assets/models/test_convex_colliders.glb", false, true)
+loadColliderMeshes("assets/models/test_convex_colliders.obj", true)
+loadColliderMeshes("assets/models/test_concave_colliders.obj", false)
 
 function create(player)
     setName(player, "player")
@@ -26,14 +28,19 @@ function create(player)
             gravity = vec3(0),
             collider = Collider {
                 bounciness = .5,
-                frictionCoefficent = 1
+                frictionCoefficent = 1,
+                collisionCategoryBits = collisionMasks.DYNAMIC_CHARACTER,
+                collideWithMaskBits = collisionMasks.STATIC_TERRAIN | collisionMasks.SENSOR,
             }
         },
         CapsuleColliderShape {
             sphereRadius = 2,
             sphereDistance = 2
         },
-        Inspecting()
+        GravityFieldAffected {
+            defaultGravity = vec3(0, -10, 0)
+        }
+        --Inspecting()
     })
 
     onEntityEvent(player, "AnimationFinished", function(anim, unsub)

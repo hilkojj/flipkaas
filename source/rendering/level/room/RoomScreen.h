@@ -21,7 +21,7 @@ class RoomScreen : public Screen
     struct RenderContext
     {
         Camera &cam;
-        ShaderProgram &shader, &riggedShader;
+        ShaderProgram &shader, &riggedShader, &instancedShader;
         uint mask;
         std::function<bool(entt::entity)> filter;
         bool
@@ -42,7 +42,7 @@ class RoomScreen : public Screen
     EntityInspector3D inspector;
 
     ShaderAsset
-        defaultShader, riggedShader, depthShader, riggedDepthShader,
+        defaultShader, riggedShader, instancedShader, depthShader, riggedDepthShader, instancedDepthShader,
 
         blurShader, hdrShader, skyShader;
 
@@ -56,7 +56,7 @@ class RoomScreen : public Screen
     Texture dummyTexture;
 
   public:
-
+      
     Room3D *room;
 
     RoomScreen(Room3D *room, bool showRoomEditor=false);
@@ -71,11 +71,17 @@ class RoomScreen : public Screen
 
   private:
 
+    void updateInstancedModels();
+
     void renderRoom(const RenderContext &);
 
     void initializeShader(const RenderContext &, ShaderProgram &);
 
+    void prepareMaterial(entt::entity, const RenderContext &, const ModelPart &, ShaderProgram &);
+
     void renderModel(const RenderContext &, ShaderProgram &, entt::entity, const Transform &, const RenderModel &, const Rigged *rig=NULL);
+
+    void renderInstancedModels(const RenderContext &, ShaderProgram &, entt::entity, const RenderModel &, const Room3D::ModelInstances &);
 
 
     // debug:

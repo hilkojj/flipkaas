@@ -66,7 +66,7 @@ entt::entity EntityInspector3D::pickEntityInRoom(const Camera *cam, DebugLineRen
             ImGui::SetTooltip((std::string(name) + " #%d").c_str(), int(e));
         else
             ImGui::SetTooltip("#%d", int(e));
-        renderer.axes(hitPos, 3, hitNormal);
+        renderer.axes(hitPos, 3, hitNormal * .5f + .5f);
     });
 
     return out;

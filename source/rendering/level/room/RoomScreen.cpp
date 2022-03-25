@@ -20,6 +20,8 @@ const GLubyte dummyTexData[] = {0, 0, 0};
 
 bool irradianceMapAsSkyBox = true;
 
+#define DISPOSE_VERTS_ON_UPLOAD true
+
 RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
         :
         room(room), showRoomEditor(showRoomEditor), inspector(*room, "Room"),
@@ -29,8 +31,13 @@ RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
             "shaders/default.vert", "shaders/default.frag"
         ),
         riggedShader(
-                "rigged shader",
-                "shaders/rigged.vert", "shaders/default.frag"
+            "rigged shader",
+            "shaders/rigged.vert", "shaders/default.frag"
+        ),
+        instancedShader(
+            "instanced shader",
+            "shaders/default.vert", "shaders/default.frag",
+            false
         ),
         depthShader(
             "depth shader",
@@ -39,6 +46,11 @@ RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
         riggedDepthShader(
             "rigged depth shader",
             "shaders/rigged_depth.vert", "shaders/depth.frag"
+        ),
+        instancedDepthShader(
+            "instanced shader",
+            "shaders/depth.vert", "shaders/depth.frag",
+            false
         ),
 
         blurShader(
@@ -58,6 +70,10 @@ RoomScreen::RoomScreen(Room3D *room, bool showRoomEditor)
         dummyTexture(Texture::fromByteData(&dummyTexData[0], GL_RGB, 1, 1, GL_NEAREST, GL_NEAREST))
 {
     assert(room != NULL);
+
+    instancedShader.definitions.define("INSTANCED");
+    instancedDepthShader.definitions.define("INSTANCED");
+
     inspector.createEntity_showSubFolder = "level_room";
     EnvironmentMap::getBRDFLookUpTexture(); // create once.
 }
@@ -94,6 +110,8 @@ void RoomScreen::render(double deltaTime)
 
     // todo sort models by depth
 
+    updateInstancedModels();
+
     if (Game::settings.graphics.shadows)
     {
         gu::profiler::Zone z1("shadow maps");
@@ -113,7 +131,7 @@ void RoomScreen::render(double deltaTime)
             sr.fbo->bind();
             glClear(GL_DEPTH_BUFFER_BIT);
 
-            RenderContext shadowMapCon { orthoCam, depthShader, riggedDepthShader };
+            RenderContext shadowMapCon { orthoCam, depthShader, riggedDepthShader, instancedDepthShader };
             shadowMapCon.mask = sr.visibilityMask;
             shadowMapCon.lights = false;
             shadowMapCon.materials = false;
@@ -125,7 +143,7 @@ void RoomScreen::render(double deltaTime)
         });
     }
 
-    RenderContext finalImg { *room->camera, defaultShader, riggedShader };
+    RenderContext finalImg { *room->camera, defaultShader, riggedShader, instancedShader };
     finalImg.mask = ~0u;
     finalImg.shadows = Game::settings.graphics.shadows;
     finalImg.skyShader = &skyShader;
@@ -319,14 +337,97 @@ RoomScreen::~RoomScreen()
     delete blurPingPongFbos[1];
 }
 
+inline void prepareMeshVertBuffer(const SharedMesh &mesh)
+{
+    if (!mesh->vertBuffer)
+        throw gu_err("Mesh (" + mesh->name + ") is not assigned to any VertBuffer!");
+
+    if (!mesh->vertBuffer->isUploaded())
+        mesh->vertBuffer->upload(DISPOSE_VERTS_ON_UPLOAD);
+}
+
+void RoomScreen::updateInstancedModels()
+{
+    room->entities.view<RenderModel, InstancedRendering>().each([&](auto e, RenderModel &rm, InstancedRendering &instanced) {
+
+        if (!instanced.anyDirty() && instanced.staticTransforms)
+            return;
+
+        auto &model = room->models[rm.modelName];
+        if (!model)
+            return;
+
+        instanced.data.transforms.vertices.clear();
+
+        for (auto transformEntity : instanced.transformEntities)
+        {
+            if (auto *t = room->entities.try_get<Transform>(transformEntity))
+            {
+                instanced.data.transforms.addVertices(1);
+                instanced.data.transforms.set<mat4>(room->transformFromComponent(*t), instanced.data.transforms.nrOfVertices() - 1, 0);
+                // assert(instanced.data.transforms.get<mat4>(instanced.data.transforms.nrOfVertices() - 1, 0) == room->transformFromComponent(*t));
+            }
+        }
+
+        std::map<VertBuffer *, bool> bufferUpdated;
+        std::vector<SharedMesh> meshes;
+
+        for (auto &part : model->parts)
+        {
+            prepareMeshVertBuffer(part.mesh);
+            meshes.push_back(part.mesh);
+            auto vertBuffer = part.mesh->vertBuffer;
+
+            if (!bufferUpdated[vertBuffer])
+            {
+                bufferUpdated[vertBuffer] = true;
+
+                auto it = instanced.data.vertDataIdPerBuffer.find(vertBuffer);
+                int id = it == instanced.data.vertDataIdPerBuffer.end() ? -1 : it->second;
+
+                id = vertBuffer->uploadPerInstanceData(instanced.data.transforms, 1, id, instanced.staticTransforms ? GL_STATIC_DRAW : GL_STREAM_DRAW);
+                instanced.data.vertDataIdPerBuffer[vertBuffer] = id;
+            }
+        }
+
+        std::vector<VertBuffer *> toDelete;
+        for (auto &[vertBuffer, id] : instanced.data.vertDataIdPerBuffer)
+        {
+            if (!bufferUpdated[vertBuffer])
+            {
+                vertBuffer->deletePerInstanceData(id);
+                toDelete.push_back(vertBuffer);
+            }
+        }
+        for (auto vertBuffer : toDelete)
+            instanced.data.vertDataIdPerBuffer.erase(vertBuffer);
+
+        instanced.data.meshes = meshes; // do this after pointing to vertbuffers.
+        instanced.undirtAll();
+    });
+}
+
 void RoomScreen::renderRoom(const RenderContext &con)
 {
     gu::profiler::Zone z("render models");
 
     initializeShader(con, con.shader);
-    room->entities.view<Transform, RenderModel>(entt::exclude<Rigged>).each([&](auto e, Transform &t, RenderModel &rm) {
+    room->entities.view<Transform, RenderModel>(entt::exclude<Rigged, InstancedRendering>).each([&](auto e, Transform &t, RenderModel &rm) {
         if (con.filter && !con.filter(e)) return;
         renderModel(con, con.shader, e, t, rm);
+    });
+
+    bool firstInstanced = true;
+    room->entities.view<RenderModel, InstancedRendering>(entt::exclude<Rigged>).each([&](auto e, RenderModel &rm, InstancedRendering &ir) {
+        if (con.filter && !con.filter(e)) return;
+
+        if (firstInstanced)
+        {
+            initializeShader(con, con.instancedShader);
+            firstInstanced = false;
+        }
+
+        renderInstancedModels(con, con.instancedShader, e, rm, ir.data);
     });
 
     if (con.riggedModels)
@@ -394,6 +495,39 @@ const char
     *PREFILTER_UNI_NAME = "prefilterMap",
     *BRDF_LUT_UNI_NAME = "brdfLUT";
 
+void RoomScreen::prepareMaterial(entt::entity e, const RenderContext &con, const ModelPart &modelPart, ShaderProgram &shader)
+{
+    bool useDiffuseTexture = modelPart.material->diffuseTexture.isSet();
+    glUniform1i(shader.location("useDiffuseTexture"), useDiffuseTexture);
+    if (useDiffuseTexture)
+        modelPart.material->diffuseTexture.get().bind(DIFFUSE_TEX_UNIT, shader, DIFFUSE_UNI_NAME);
+    else
+    {
+        glUniform3fv(shader.location("diffuse"), 1, &modelPart.material->diffuse[0]);
+        dummyTexture.bind(DIFFUSE_TEX_UNIT, shader, DIFFUSE_UNI_NAME);
+    }
+
+    bool useMetallicRoughnessTexture = modelPart.material->metallicRoughnessTexture.isSet();
+    glUniform1i(shader.location("useMetallicRoughnessTexture"), useMetallicRoughnessTexture);
+    if (useMetallicRoughnessTexture)
+        modelPart.material->metallicRoughnessTexture.get().bind(MET_ROUG_TEX_UNIT, shader, MET_ROUG_UNI_NAME);
+    else
+    {
+        glUniform2fv(shader.location("metallicRoughnessFactors"), 1, &modelPart.material->metallic);
+        dummyTexture.bind(MET_ROUG_TEX_UNIT, shader, MET_ROUG_UNI_NAME);
+    }
+
+    bool useNormalMap = modelPart.material->normalMap.isSet();
+    glUniform1i(shader.location("useNormalMap"), useNormalMap);
+    if (useNormalMap)
+        modelPart.material->normalMap.get().bind(NORMAL_TEX_UNIT, shader, NORMAL_UNI_NAME);
+    else
+        dummyTexture.bind(NORMAL_TEX_UNIT, shader, NORMAL_UNI_NAME);
+
+    if (con.shadows)
+        glUniform1i(shader.location("useShadows"), room->entities.has<ShadowReceiver>(e));
+}
+
 void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, entt::entity e, const Transform &t, const RenderModel &rm, const Rigged *rig)
 {
     if (!(rm.visibilityMask & con.mask))
@@ -415,44 +549,10 @@ void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, en
         if (!modelPart.material || !modelPart.mesh) // TODO: give warning if modelpart has no material?
             continue;
 
-        if (!modelPart.mesh->vertBuffer)
-            throw gu_err("Model (" + model->name + ") mesh (" + modelPart.mesh->name + ") is not assigned to any VertBuffer!");
-
-        if (!modelPart.mesh->vertBuffer->isUploaded())
-            modelPart.mesh->vertBuffer->upload(true);
+        prepareMeshVertBuffer(modelPart.mesh);
 
         if (con.materials)
-        {
-            bool useDiffuseTexture = modelPart.material->diffuseTexture.isSet();
-            glUniform1i(shader.location("useDiffuseTexture"), useDiffuseTexture);
-            if (useDiffuseTexture)
-                modelPart.material->diffuseTexture.get().bind(DIFFUSE_TEX_UNIT, shader, DIFFUSE_UNI_NAME);
-            else
-            {
-                glUniform3fv(shader.location("diffuse"), 1, &modelPart.material->diffuse[0]);
-                dummyTexture.bind(DIFFUSE_TEX_UNIT, shader, DIFFUSE_UNI_NAME);
-            }
-
-            bool useMetallicRoughnessTexture = modelPart.material->metallicRoughnessTexture.isSet();
-            glUniform1i(shader.location("useMetallicRoughnessTexture"), useMetallicRoughnessTexture);
-            if (useMetallicRoughnessTexture)
-                modelPart.material->metallicRoughnessTexture.get().bind(MET_ROUG_TEX_UNIT, shader, MET_ROUG_UNI_NAME);
-            else
-            {
-                glUniform2fv(shader.location("metallicRoughnessFactors"), 1, &modelPart.material->metallic);
-                dummyTexture.bind(MET_ROUG_TEX_UNIT, shader, MET_ROUG_UNI_NAME);
-            }
-
-            bool useNormalMap = modelPart.material->normalMap.isSet();
-            glUniform1i(shader.location("useNormalMap"), useNormalMap);
-            if (useNormalMap)
-                modelPart.material->normalMap.get().bind(NORMAL_TEX_UNIT, shader, NORMAL_UNI_NAME);
-            else
-                dummyTexture.bind(NORMAL_TEX_UNIT, shader, NORMAL_UNI_NAME);
-
-            if (con.shadows)
-                glUniform1i(shader.location("useShadows"), room->entities.has<ShadowReceiver>(e));
-        }
+            prepareMaterial(e, con, modelPart, shader);
 
         if (rig && !modelPart.armature->bones.empty())
         {
@@ -467,6 +567,34 @@ void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, en
         }
 
         modelPart.mesh->render(modelPart.meshPartIndex);
+    }
+}
+
+void RoomScreen::renderInstancedModels(const RenderContext &con, ShaderProgram &shader, entt::entity e, const RenderModel &rm, const Room3D::ModelInstances &mi)
+{
+    if (!(rm.visibilityMask & con.mask))
+        return;
+
+    auto &model = room->models[rm.modelName];
+    if (!model)
+        return;
+
+    glUniformMatrix4fv(shader.location("viewProjection"), 1, GL_FALSE, &con.cam.combined[0][0]);
+
+    for (auto &modelPart : model->parts)
+    {
+        if (!modelPart.material || !modelPart.mesh) // TODO: give warning if modelpart has no material?
+            continue;
+
+        prepareMeshVertBuffer(modelPart.mesh);
+
+        if (con.materials)
+            prepareMaterial(e, con, modelPart, shader);
+        auto it = mi.vertDataIdPerBuffer.find(modelPart.mesh->vertBuffer);
+        if (it == mi.vertDataIdPerBuffer.end())
+            throw gu_err("transforms have not been uploaded to buffer");
+        modelPart.mesh->vertBuffer->usePerInstanceData(it->second);
+        modelPart.mesh->renderInstances(mi.transforms.nrOfVertices(), modelPart.meshPartIndex);
     }
 }
 

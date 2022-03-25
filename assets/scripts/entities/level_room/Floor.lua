@@ -1,6 +1,8 @@
 
 persistenceMode(TEMPLATE | ARGS, {"Transform"})
 
+collisionMasks = include("scripts/entities/level_room/_collision_masks")
+
 function create(floor)
 
     setName(floor, "floor")
@@ -14,7 +16,9 @@ function create(floor)
             mass = 0,
             collider = Collider {
                 bounciness = 1,
-                frictionCoefficent = 1
+                frictionCoefficent = 1,
+                collisionCategoryBits = collisionMasks.STATIC_TERRAIN,
+                collideWithMaskBits = collisionMasks.DYNAMIC_PROPS | collisionMasks.DYNAMIC_CHARACTER,
             }
         },
         BoxColliderShape {

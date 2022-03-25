@@ -240,7 +240,10 @@ void main()
     vec3 albedo = diffuse;
     if (useDiffuseTexture == 1)
     {
-        albedo = texture(diffuseTexture, v_textureCoord).rgb;
+        vec4 albedoAlpha = texture(diffuseTexture, v_textureCoord);
+        albedo = albedoAlpha.rgb;
+        if (albedoAlpha.a < .5)
+            discard;
         albedo = pow(albedo, vec3(GAMMA)); // sRGB to linear space. https://learnopengl.com/Advanced-Lighting/Gamma-Correction
     }
 
