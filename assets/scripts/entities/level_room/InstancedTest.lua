@@ -16,13 +16,22 @@ function create(e)
         },
 		InstancedRendering {
 		},
+		Transform {
+			position = vec3(0, 10, 0)
+		},
+		GhostBody {
+
+		},
+		SphereColliderShape {
+			radius = .5;
+		},
         ShadowReceiver(),
 		ShadowCaster()
 	})
 	
 	local i = 0;
 
-	setUpdateFunction(e, .3, function()
+	setUpdateFunction(e, 2, function()
 		
 		i = i + 1
 
@@ -31,7 +40,7 @@ function create(e)
 		setComponents(child, {
 
 			Transform {
-				position = vec3(0, 10, 0)
+				position = component.Transform.getFor(e).position - vec3(0, 1, 0)
 			},
 			RigidBody {
 				mass = 10,

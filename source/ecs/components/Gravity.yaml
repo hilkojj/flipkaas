@@ -12,6 +12,22 @@ SphereGravityFunction:
 DonutGravityFunction:
   donutRadius: float
   gravityRadius: float
+  
+DiscGravityFunction:
+  radius: float
+  gravityRadius: float
+  
+CylinderGravityFunction:
+  gravityRadius: float
+  height: float
+
+CylinderToPlaneGravityFunction:
+  cylinderRadius: float
+  gravityRadius: float
+  height: float
+
+PlaneGravityFunction:
+  f
 
 GravityFieldAffected:
   gravityScale: [float, 10]

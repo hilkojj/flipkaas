@@ -77,6 +77,18 @@ void Room3D::initializeLuaEnvironment()
     };
 }
 
+void decomposeMtx(const mat4 &m, vec3 &pos, quat &rot, vec3 &scale)
+{
+    pos = m[3];
+    for (int i = 0; i < 3; i++)
+        scale[i] = length(vec3(m[i]));
+    const mat3 rotMtx(
+        vec3(m[0]) / scale[0],
+        vec3(m[1]) / scale[1],
+        vec3(m[2]) / scale[2]);
+    rot = quat_cast(rotMtx);
+}
+
 void Room3D::update(double deltaTime)
 {
     Room::update(deltaTime);
@@ -86,11 +98,14 @@ void Room3D::update(double deltaTime)
         if (!entities.valid(child.parentEntity))
             return;
 
-        if (auto parentTrans = entities.try_get<Transform>(child.parentEntity))
+        if (auto parentTransComp = entities.try_get<Transform>(child.parentEntity))
         {
-            t.position = parentTrans->position + child.offset.position;
-            t.rotation = parentTrans->rotation * child.offset.rotation;
-            t.scale = parentTrans->scale * child.offset.scale;
+            mat4 parentTrans = transformFromComponent(*parentTransComp);
+            mat4 childTrans = transformFromComponent(child.offset);
+            mat4 resultTrans = parentTrans * childTrans;
+
+            // TODO: not sure this is the fastest way
+            decomposeMtx(resultTrans, t.position, t.rotation, t.scale);
         }
     });
 

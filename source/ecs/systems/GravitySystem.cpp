@@ -23,7 +23,7 @@ void GravitySystem::update(double deltaTime, EntityEngine *)
             if (len > .01)
                 return diff / len;
             else
-                return vec3(0);
+                return mu::ZERO_3;
         });
     });
 
@@ -49,7 +49,7 @@ void GravitySystem::update(double deltaTime, EntityEngine *)
 
             auto lenProj = length(victimPosDonutSpaceProjected);
             if (lenProj < .01)
-                return vec3(0);
+                return mu::ZERO_3;
 
             vec3 closestCirclePoint = victimPosDonutSpaceProjected / lenProj;
 
@@ -57,13 +57,122 @@ void GravitySystem::update(double deltaTime, EntityEngine *)
             vec3 diff = closestCirclePoint - victimPosDonutSpace;
             auto len = length(diff);
             if (len < .01 || len > localGravityRadius)
-                return vec3(0);
+                return mu::ZERO_3;
 
             vec3 diffWorld = donutToWorld * vec4(diff, 0);
 
             return normalize(diffWorld);
         });
 
+    });
+
+    room->entities.view<Transform, GhostBody, GravityField, DiscGravityFunction>().each([&](auto e, const Transform &t, const GhostBody &ghost, GravityField &field, DiscGravityFunction &disc) {
+        // TODO: code is 90% same as for Donut
+
+        if (disc.radius < .01 || disc.gravityRadius < .01)
+            return;
+
+        auto discToWorld = glm::translate(mat4(1), t.position);
+        discToWorld *= glm::toMat4(t.rotation);
+        discToWorld = glm::scale(discToWorld, vec3(disc.radius));
+        auto worldToDisc = inverse(discToWorld);
+
+        float localGravityRadius = disc.gravityRadius / disc.radius;
+
+        forEachVictim(field, ghost, [&](auto victim, const Transform &victimTrans) {
+
+            vec3 victimPosDiscSpace = worldToDisc * vec4(victimTrans.position, 1);
+            vec3 victimPosDiscSpaceProjected = victimPosDiscSpace;
+            victimPosDiscSpaceProjected.y = 0;
+
+            // disc radius is implicitly 1
+
+            auto lenProj = length(victimPosDiscSpaceProjected);
+            if (lenProj < .01)
+                return mu::ZERO_3;
+
+            vec3 closestCirclePoint = lenProj > 1 ? victimPosDiscSpaceProjected / lenProj : victimPosDiscSpaceProjected;
+
+            vec3 diff = closestCirclePoint - victimPosDiscSpace;
+            auto len = length(diff);
+            if (len < .01 || len > localGravityRadius)
+                return mu::ZERO_3;
+
+            vec3 diffWorld = discToWorld * vec4(diff, 0);
+
+            return normalize(diffWorld);
+        });
+
+    });
+
+    room->entities.view<Transform, GhostBody, GravityField, CylinderGravityFunction>().each([&](auto e, const Transform &t, const GhostBody &ghost, GravityField &field, CylinderGravityFunction &cyl) {
+        
+        if (cyl.height < .01 || cyl.gravityRadius < .01)
+            return;
+
+        vec3 dirBottomTop = rotate(t.rotation, mu::Y);
+        vec3 bottom = t.position - (dirBottomTop * (cyl.height * .5f));
+        vec3 top = t.position + (dirBottomTop * (cyl.height * .5f));
+
+        forEachVictim(field, ghost, [&](auto victim, const Transform &victimTrans) {
+
+            // https://math.stackexchange.com/questions/1905533/find-perpendicular-distance-from-point-to-line-in-3d
+
+            vec3 bottomToVic = victimTrans.position - bottom;
+            float t = dot(bottomToVic, dirBottomTop);
+            vec3 projected = bottom + t * dirBottomTop;
+            vec3 diff = projected - victimTrans.position;
+            float len = length(diff);
+            if (len < .01 || len > cyl.gravityRadius)
+                return mu::ZERO_3;
+
+            return diff / len;
+        });
+    });
+
+    room->entities.view<Transform, GhostBody, GravityField, CylinderToPlaneGravityFunction>().each([&](auto e, const Transform &t, const GhostBody &ghost, GravityField &field, CylinderToPlaneGravityFunction &ctp) {
+
+        if (ctp.height < .01 || ctp.gravityRadius < .01)
+            return;
+
+        auto ctpToWorld = glm::translate(mat4(1), t.position);
+        ctpToWorld *= glm::toMat4(t.rotation);
+        auto worldToCtp = inverse(ctpToWorld);
+
+        forEachVictim(field, ghost, [&](auto victim, const Transform &victimTrans) {
+
+            vec3 victimPosCtpSpace = worldToCtp * vec4(victimTrans.position, 1);
+
+            float height01 = 1 - (victimPosCtpSpace.y + ctp.height * .5) / ctp.height;
+            if (height01 < 0 || height01 > 1)
+                return mu::ZERO_3;
+
+            vec3 victimPosCtpSpaceProjected = vec3(0, victimPosCtpSpace.y, 0);
+
+            vec3 diffCenter = victimPosCtpSpaceProjected - victimPosCtpSpace;
+            float distCenter = length(diffCenter);
+            if (distCenter < .01 || distCenter > ctp.gravityRadius)
+                return mu::ZERO_3;
+            vec3 dirCenter = diffCenter / distCenter;
+
+            vec3 rotatePoint = -dirCenter * ctp.gravityRadius;
+            rotatePoint.y = ctp.height * .5;
+
+            vec3 diff = victimPosCtpSpace - rotatePoint;
+            float len = length(diff);
+            if (len < .01)
+                return mu::ZERO_3;
+
+            return vec3(ctpToWorld * vec4(diff / len, 0));
+        });
+    });
+
+    room->entities.view<Transform, GhostBody, GravityField, PlaneGravityFunction>().each([&](auto e, const Transform &t, const GhostBody &ghost, GravityField &field, auto) {
+
+        vec3 dir = rotate(t.rotation, -mu::Y);
+        forEachVictim(field, ghost, [&](auto victim, const Transform &victimTrans) {
+            return dir;
+        });
     });
 
     room->entities.view<RigidBody, GravityFieldAffected>().each([&](auto e, RigidBody &body, GravityFieldAffected &affected) {
