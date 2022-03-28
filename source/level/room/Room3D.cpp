@@ -81,6 +81,19 @@ void Room3D::update(double deltaTime)
 {
     Room::update(deltaTime);
 
+    entities.view<Transform, TransformChild>().each([&](Transform &t, TransformChild &child) {
+
+        if (!entities.valid(child.parentEntity))
+            return;
+
+        if (auto parentTrans = entities.try_get<Transform>(child.parentEntity))
+        {
+            t.position = parentTrans->position + child.offset.position;
+            t.rotation = parentTrans->rotation * child.offset.rotation;
+            t.scale = parentTrans->scale * child.offset.scale;
+        }
+    });
+
     updateOrCreateCamera(deltaTime);
 }
 

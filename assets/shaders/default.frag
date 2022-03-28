@@ -220,7 +220,8 @@ void dirShadowLightRadiance(DirectionalShadowLight light, vec3 N, vec3 V, vec3 F
     float shadow = 0.;
     if (useShadows == 1)
     {
-        vec4 shadowMapCoords = light.shadowSpace * vec4(v_position, 1);
+        vec3 biasedPos = v_position + N * .1;   // https://digitalrune.github.io/DigitalRune-Documentation/html/3f4d959e-9c98-4a97-8d85-7a73c26145d7.htm
+        vec4 shadowMapCoords = light.shadowSpace * vec4(biasedPos, 1);
         shadowMapCoords = shadowMapCoords * .5 + .5;
         if (shadowMapCoords.x >= 0. && shadowMapCoords.x <= 1. && shadowMapCoords.y >= 0. && shadowMapCoords.y <= 1. && shadowMapCoords.z <= 1.)
         {

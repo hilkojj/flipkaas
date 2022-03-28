@@ -21,20 +21,15 @@ function create(e)
 		},
 		BoxColliderShape {
 			halfExtents = vec3(10, 10, 10);
-		},
-		GravityField {
-			priority = 0
-		},
-		SphereGravityFunction {
 		}
 	})
 
 	onEntityEvent(e, "Collision", function (col)
-		print("enter: "..getName(col.otherEntity))
+		print("enter: "..(getName(col.otherEntity) or col.otherEntity))
 	end)
 
 	onEntityEvent(e, "CollisionEnded", function (col)
-		print("left: "..getName(col.otherEntity))
+		print("left: "..(getName(col.otherEntity) or col.otherEntity))
 	end)
 
 end

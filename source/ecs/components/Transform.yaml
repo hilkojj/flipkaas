@@ -3,3 +3,7 @@ Transform:
   position: vec3
   rotation: [quat, "quat(1, 0, 0, 0)"]
   scale: [vec3, vec3(1)]
+
+TransformChild:
+  parentEntity: [entt::entity, entt::null]
+  offset: Transform

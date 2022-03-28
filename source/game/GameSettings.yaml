@@ -25,6 +25,7 @@ GraphicsSettings @not_a_component @json_with_keys:
   debugShadowBoxes: [bool, true]
   debugArmatures: [bool, true]
   debugColliders: [bool, false]
+  debugGravityFieldAffected: [bool, false]
   debugColliderAABBs: [bool, false]
   debugConstraints: [bool, false]
   debugConstraintLimits: [bool, false]

@@ -1,28 +1,28 @@
 
 
-<!-- #### [Download for Linux](https://dibidabidab.github.io/game-without-a-name-and-unicorns/game-linux.zip)
-#### [Download for Windows](https://dibidabidab.github.io/game-without-a-name-and-unicorns/game-windows.zip)
-#### [Play game in browser*](https://dibidabidab.github.io/game-without-a-name-and-unicorns/game.html)
+#### [Download for Linux](https://hilkojj.nl/flipkaas/game-linux.zip)
+#### [Download for Windows](https://hilkojj.nl/flipkaas/game-windows.zip)
+#### [Play game in browser*](https://hilkojj.nl/flipkaas/game.html)
 <sup>*less peformance, prefer the linux or windows download instead.</sup>
 
-![Build & deploy to gh-pages](https://github.com/dibidabidab/game-without-a-name-and-unicorns/workflows/Build%20&%20deploy%20to%20gh-pages/badge.svg)
-[![BCH compliance](https://bettercodehub.com/edge/badge/hilkojj/dibidabidab?branch=master)](https://bettercodehub.com/) -->
+[![Build & deploy to gh-pages](https://github.com/hilkojj/flipkaas/actions/workflows/build_and_deploy.yml/badge.svg)](https://github.com/hilkojj/flipkaas/actions/workflows/build_and_deploy.yml)
 
-## Usage
+## Cloning & bulding
 
 Make sure you have [Git LFS](https://git-lfs.github.com/) installed, then clone this repo.
 
-Do `git submodule update --init --recursive` to clone submodules
+Do `git submodule update --init --recursive` to clone submodules.
 
-
-##### Note for windows:
-After compiling, make sure you move `OpenAL32.dll` to the working directory (the game might not launch without).
-
-You can find it somewhere in `desktop/out/Release/bin/....` or in a similar directory (I hope Windows has a proper search function). 
+When running the game, make sure the 'assets/' folder is in the working directory.
 
 ##### Note for Visual Studio:
-With the command line you can create a soft link to the assets folder, in case you can't change the working directory of the debugger.
+With the command line you can create a soft link to the assets folder, in case you can't change the working directory of the debugger (I haven't been able to with VS).
 `mklink /D assets ..\..\..\..\..\assets\`
+
+##### Note for windows:
+After compiling, make sure you move `OpenAL32.dll` to the working directory (the game will not launch without).
+
+You can find it in `desktop/out/build/x64-Debug/bin/dibidab-engine/bin/gu/bin/openal` in case of a Debug build. 
 
 ### Open in CLion
 - open `desktop/CMakeLists.txt`

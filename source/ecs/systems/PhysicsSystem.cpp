@@ -326,7 +326,7 @@ bool PhysicsSystem::loadColliderMeshesFromObj(const char *path, bool convex)
     return true;
 }
 
-void PhysicsSystem::rayTest(const vec3 &from, const vec3 &to, const RayHitCallback &cb, int mask, int category)
+void PhysicsSystem::rayTest(const vec3 &from, const vec3 &to, const RayHitCallback &cb, bool skipGhosts, int mask, int category)
 {
     if (!room)
         throw gu_err("Not initialized!");
@@ -334,30 +334,23 @@ void PhysicsSystem::rayTest(const vec3 &from, const vec3 &to, const RayHitCallba
     auto btFrom = vec3ToBt(from);
     auto btTo = vec3ToBt(to);
 
-    /*
     struct Callback : public btCollisionWorld::ClosestRayResultCallback
     {
-        const RayHitCallback &cb;
-        const entt::registry &reg;
+        bool skipGhosts;
 
-        Callback(const entt::registry &reg, const RayHitCallback &cb, btVector3 &from, btVector3 &to) : reg(reg), cb(cb), ClosestRayResultCallback(from, to)
+        Callback(const btVector3 &from, const btVector3 &to, bool skipGhosts) : btCollisionWorld::ClosestRayResultCallback(from, to), skipGhosts(skipGhosts)
         {}
 
         virtual btScalar addSingleResult(btCollisionWorld::LocalRayResult &rayResult, bool normalInWorldSpace)
         {
-            auto hF = btCollisionWorld::ClosestRayResultCallback::addSingleResult(rayResult, normalInWorldSpace);
+            if (skipGhosts && rayResult.m_collisionObject->getInternalType() == btCollisionObject::CollisionObjectTypes::CO_GHOST_OBJECT)
+                return 1;
 
-            entt::entity e = entt::entity(rayResult.m_collisionObject->getUserIndex());
-
-            if (!reg.valid(e))
-                throw gu_err("Hit an object using a raycast, but its UserIndex does not return a valid entity!");
-
-            return cb(e, btToVec3(m_hitPointWorld), btToVec3(m_hitNormalWorld)) ? ; // return 1 to skip
+            return ClosestRayResultCallback::addSingleResult(rayResult, normalInWorldSpace);
         }
-    } btCallback(room->entities, cb, btFrom, btTo);
+    } btCallback(btFrom, btTo, skipGhosts);
 
-    */
-    btCollisionWorld::ClosestRayResultCallback btCallback(btFrom, btTo);
+    //btCollisionWorld::ClosestRayResultCallback btCallback(btFrom, btTo);
 
     btCallback.m_collisionFilterGroup = category;
     btCallback.m_collisionFilterMask = mask;

@@ -22,7 +22,7 @@ function create(e)
 	
 	local i = 0;
 
-	setUpdateFunction(e, 1, function()
+	setUpdateFunction(e, .3, function()
 		
 		i = i + 1
 
@@ -34,7 +34,6 @@ function create(e)
 				position = vec3(0, 10, 0)
 			},
 			RigidBody {
-				gravity = vec3(0, -10, 0),
 				mass = 10,
 				collider = Collider {
 					bounciness = .3,
@@ -48,6 +47,9 @@ function create(e)
 			},
 			DespawnAfter {
 				time = 20
+			},
+			GravityFieldAffected {
+				defaultGravity = vec3(0, -10, 0)
 			}
 		})
 		

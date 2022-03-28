@@ -67,7 +67,7 @@ entt::entity EntityInspector3D::pickEntityInRoom(const Camera *cam, DebugLineRen
         else
             ImGui::SetTooltip("#%d", int(e));
         renderer.axes(hitPos, 3, hitNormal * .5f + .5f);
-    });
+    }, KeyInput::pressed(GLFW_KEY_LEFT_CONTROL));
 
     return out;
 }

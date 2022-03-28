@@ -26,6 +26,7 @@ function create(player)
         ShadowCaster(),
         RigidBody {
             gravity = vec3(0),
+            mass = 1,
             collider = Collider {
                 bounciness = .5,
                 frictionCoefficent = 1,
@@ -33,9 +34,8 @@ function create(player)
                 collideWithMaskBits = collisionMasks.STATIC_TERRAIN | collisionMasks.SENSOR,
             }
         },
-        CapsuleColliderShape {
-            sphereRadius = 2,
-            sphereDistance = 2
+        SphereColliderShape {
+            radius = 2
         },
         GravityFieldAffected {
             defaultGravity = vec3(0, -10, 0)

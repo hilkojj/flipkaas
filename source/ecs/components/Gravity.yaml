@@ -4,9 +4,14 @@ config:
 
 GravityField:
   priority: uint8
+  strength: [float, 1]
 
 SphereGravityFunction:
-  test: bool
+  f
+
+DonutGravityFunction:
+  donutRadius: float
+  gravityRadius: float
 
 GravityFieldAffected:
   gravityScale: [float, 10]

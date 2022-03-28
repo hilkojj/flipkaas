@@ -9,6 +9,7 @@
 #include "../../../generated/Model.hpp"
 #include "../../../generated/Light.hpp"
 #include "../../../generated/Physics.hpp"
+#include "../../../generated/Gravity.hpp"
 #include "../../../game/Game.h"
 #include "EnvironmentMap.h"
 #include "../../../ecs/systems/PhysicsSystem.h"
@@ -261,6 +262,14 @@ void RoomScreen::renderDebugStuff(double deltaTime)
     physicsSystem->debugDraw([&](auto a, auto b, auto color) {
         lineRenderer.line(a, b, color);
     });
+    if (Game::settings.graphics.debugGravityFieldAffected)
+    {
+        room->entities.view<Transform, GravityFieldAffected, RigidBody>().each([&](auto &t, auto &a, auto &rb) {
+
+            lineRenderer.line(t.position, t.position + rb.gravity, mu::X);
+
+        });
+    }
 
     gizmoRenderer.beginFrame(deltaTime, vec2(gu::width, gu::height), cam);
     inspector.drawGUI(&cam, lineRenderer, gizmoRenderer);
@@ -279,6 +288,7 @@ void RoomScreen::renderDebugStuff(double deltaTime)
             ImGui::Checkbox("Show collider AABBs", &Game::settings.graphics.debugColliderAABBs);
             ImGui::Checkbox("Show constraints", &Game::settings.graphics.debugConstraints);
             ImGui::Checkbox("Show constraint limits", &Game::settings.graphics.debugConstraintLimits);
+            ImGui::Checkbox("Show gravity field affected", &Game::settings.graphics.debugGravityFieldAffected);
         }
 
         ImGui::DragFloat("HDR exposure", &hdrExposure, .1, 0, 10);
