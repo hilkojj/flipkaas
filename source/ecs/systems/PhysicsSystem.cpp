@@ -368,6 +368,24 @@ void PhysicsSystem::rayTest(const vec3 &from, const vec3 &to, const RayHitCallba
     }
 }
 
+void PhysicsSystem::applyForce(RigidBody &rb, const vec3 &force)
+{
+    assert(rb.bt);
+    rb.bt->applyCentralForce(vec3ToBt(force));
+}
+
+void PhysicsSystem::setLinearVelocity(RigidBody &rb, const vec3 &vel)
+{
+    assert(rb.bt);
+    rb.bt->setLinearVelocity(vec3ToBt(vel));
+}
+
+vec3 PhysicsSystem::getLinearVelocity(RigidBody &rb) const
+{
+    assert(rb.bt);
+    return btToVec3(rb.bt->getLinearVelocity());
+}
+
 void PhysicsSystem::debugDraw(const std::function<void(const vec3 &a, const vec3 &b, const vec3 &color)> &lineCallback)
 {
     struct Drawer : public btIDebugDraw

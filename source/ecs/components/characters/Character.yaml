@@ -1,0 +1,18 @@
+
+CharacterMovement:
+  walkSpeed: [float, 10]
+  jumpForce: [float, 1000]
+  fallingForce: [float, 2000]
+
+  walkDirInput: vec2
+  jumpInput: bool
+
+  # will be set, kinda readonly:
+  onGround: bool
+
+  _cpp_only:
+    coyoteTime: float
+    jumpStarted: bool
+    leftGroundSinceJumpStarted: bool
+    holdingJumpEnded: bool
+    jumpDescend: bool

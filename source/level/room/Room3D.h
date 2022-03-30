@@ -2,12 +2,13 @@
 #ifndef GAME_ROOM3D_H
 #define GAME_ROOM3D_H
 
-
 #include <level/room/Room.h>
 #include <graphics/camera.h>
 #include <graphics/3d/model.h>
 #include "../../generated/Transform.hpp"
 #include "../../rendering/level/room/EnvironmentMap.h"
+
+struct PhysicsSystem;
 
 class Room3D : public Room
 {
@@ -15,6 +16,8 @@ class Room3D : public Room
     VertBuffer
         *uploadingTo = NULL,
         *uploadingRiggedTo = NULL;
+
+    PhysicsSystem *physics = NULL;
 
   public:
 
@@ -47,6 +50,8 @@ class Room3D : public Room
     vec3 getPosition(entt::entity) const override;
 
     void setPosition(entt::entity, const vec3 &) override;
+
+    PhysicsSystem &getPhysics();
 
     Camera *cameraFromEntity(entt::entity) const;
 

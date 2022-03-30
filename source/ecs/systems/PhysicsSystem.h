@@ -5,6 +5,7 @@
 #include <functional>
 #include <ecs/systems/EntitySystem.h>
 #include "../../level/room/Room3D.h"
+#include "../../generated/Physics.hpp"
 
 struct BulletStuff;
 
@@ -18,6 +19,11 @@ public:
     bool loadColliderMeshesFromObj(const char *path, bool convex = false);
 
     void rayTest(const vec3 &from, const vec3 &to, const RayHitCallback &, bool skipGhosts=false, int mask=-1, int category=-1);
+
+    void applyForce(RigidBody &, const vec3 &);
+
+    void setLinearVelocity(RigidBody &, const vec3 &);
+    vec3 getLinearVelocity(RigidBody &) const;
 
     void debugDraw(const std::function<void(const vec3 &a, const vec3 &b, const vec3 &color)> &lineCallback);
 

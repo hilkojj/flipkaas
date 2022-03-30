@@ -10,7 +10,7 @@ function create(floor)
 	setComponents(floor, {
 		Transform {
             position = vec3(0, 0, 0),
-            scale = vec3(100)
+            scale = vec3(100, 1, 100)
         },
         RigidBody {
             mass = 0,
@@ -22,7 +22,7 @@ function create(floor)
             }
         },
         BoxColliderShape {
-            halfExtents = vec3(100, 1, 100)
+            halfExtents = vec3(100, 0, 100)
         },
         RenderModel {
             modelName = "Floor"

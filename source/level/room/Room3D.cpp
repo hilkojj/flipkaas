@@ -11,6 +11,7 @@
 #include "../../ecs/systems/ArmatureAnimationSystem.h"
 #include "../../ecs/systems/PhysicsSystem.h"
 #include "../../ecs/systems/GravitySystem.h"
+#include "../../ecs/systems/CharacterMovementSystem.h"
 
 Room3D::Room3D()
 {
@@ -27,9 +28,11 @@ Room3D::Room3D()
         .add_(VertAttributes::JOINTS)
         .add_(VertAttributes::WEIGHTS);
 
+    physics = new PhysicsSystem("Physics");
     addSystem(new ArmatureAnimationSystem("Armature animations"));
-    addSystem(new PhysicsSystem("Physics"));
+    addSystem(physics);
     addSystem(new GravitySystem("Gravity fields"));
+    addSystem(new CharacterMovementSystem("Character movement"));
 }
 
 vec3 Room3D::getPosition(entt::entity e) const
@@ -40,6 +43,12 @@ vec3 Room3D::getPosition(entt::entity e) const
 void Room3D::setPosition(entt::entity e, const vec3 &pos)
 {
     entities.get_or_assign<Transform>(e).position = pos;
+}
+
+PhysicsSystem &Room3D::getPhysics()
+{
+    assert(physics);
+    return *physics;
 }
 
 void Room3D::initializeLuaEnvironment()
@@ -60,11 +69,7 @@ void Room3D::initializeLuaEnvironment()
         loadModels(path, force, &uploadingRiggedTo, loadedRiggedMeshAttributes);
     };
     luaEnvironment["loadColliderMeshes"] = [&](const char *path, bool convex) {
-        if (auto ps = tryFindSystem<PhysicsSystem>())
-        {
-            return ps->loadColliderMeshesFromObj(path, convex);
-        }
-        else throw gu_err("This room does not have a " + std::string(typeid(PhysicsSystem).name()));
+        return getPhysics().loadColliderMeshesFromObj(path, convex);
     };
     luaEnvironment["project"] = [&] (const vec3 &pos) {
         if (!camera)

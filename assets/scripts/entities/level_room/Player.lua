@@ -10,11 +10,12 @@ function create(player)
 
     setComponents(player, {
         Transform {
-            position = vec3(0, 10, 0)
+            position = vec3(0, 1, 0)
         },
         RenderModel {
-            modelName = "Cubeman"
+            modelName = "SmallMan"
         },
+        --[[
         Rigged {
             playingAnimations = {
                 PlayAnimation {
@@ -23,22 +24,28 @@ function create(player)
                 }
             }
         },
+        ]]--
         ShadowCaster(),
         RigidBody {
             gravity = vec3(0),
             mass = 1,
+            linearDamping = .1,
+            angularAxisFactor = vec3(0),
             collider = Collider {
-                bounciness = .5,
-                frictionCoefficent = 1,
+                bounciness = 0,
+                frictionCoefficent = .1,
                 collisionCategoryBits = collisionMasks.DYNAMIC_CHARACTER,
                 collideWithMaskBits = collisionMasks.STATIC_TERRAIN | collisionMasks.SENSOR,
             }
         },
         SphereColliderShape {
-            radius = 2
+            radius = 1
         },
         GravityFieldAffected {
-            defaultGravity = vec3(0, -10, 0)
+            gravityScale = 30,
+            defaultGravity = vec3(0, -30, 0)
+        },
+        CharacterMovement {
         }
         --Inspecting()
     })

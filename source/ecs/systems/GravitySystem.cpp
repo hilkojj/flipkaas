@@ -120,6 +120,8 @@ void GravitySystem::update(double deltaTime, EntityEngine *)
 
             vec3 bottomToVic = victimTrans.position - bottom;
             float t = dot(bottomToVic, dirBottomTop);
+            if (t < 0.f || t > cyl.height)
+                return mu::ZERO_3;
             vec3 projected = bottom + t * dirBottomTop;
             vec3 diff = projected - victimTrans.position;
             float len = length(diff);

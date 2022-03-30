@@ -1,15 +1,11 @@
 
-#ifndef GRAVITY_SYSTEM_H
-#define GRAVITY_SYSTEM_H
+#ifndef CHARACTERMOVEMENT_SYSTEM_H
+#define CHARACTERMOVEMENT_SYSTEM_H
 
 #include <ecs/systems/EntitySystem.h>
-#include <functional>
 #include "../../level/room/Room3D.h"
 
-struct GhostBody;
-struct GravityField;
-
-class GravitySystem : public EntitySystem
+class CharacterMovementSystem : public EntitySystem
 {
 public:
     using EntitySystem::EntitySystem;
@@ -20,8 +16,6 @@ protected:
     void init(EntityEngine *) override;
 
     void update(double deltaTime, EntityEngine *) override;
-
-    void forEachVictim(const GravityField &, const GhostBody &, std::function<vec3(entt::entity, const Transform &)>);
 
 };
 
