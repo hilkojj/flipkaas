@@ -3,3 +3,11 @@ CameraPerspective:
   nearClipPlane: [float, .1]
   farClipPlane: [float, 1000]
   visibilityMask: [uint, 1]
+
+ThirdPersonFollowing:
+  target: [entt::entity, entt::null]
+  backwardsDistance: [float, 8]
+  upwardsDistance: [float, 3]
+  minDistance: [float, 14]
+  maxDistance: [float, 16]
+  visibilityRayMask: int

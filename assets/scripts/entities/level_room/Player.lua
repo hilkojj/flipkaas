@@ -50,6 +50,16 @@ function create(player)
         --Inspecting()
     })
 
+    local cam = getByName("3rd_person_camera")
+    if valid(cam) then
+        setComponents(cam, {
+            ThirdPersonFollowing {
+                target = player,
+                visibilityRayMask = collisionMasks.STATIC_TERRAIN
+            }
+        })
+    end
+
     onEntityEvent(player, "AnimationFinished", function(anim, unsub)
         print(anim.name.." has finished playing! Play it one more time but with less influence..")
         local anim = component.Rigged.getFor(player).playingAnimations[1]
