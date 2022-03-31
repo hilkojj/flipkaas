@@ -7,3 +7,7 @@ Transform:
 TransformChild:
   parentEntity: [entt::entity, entt::null]
   offset: Transform
+  offsetInWorldSpace: bool
+  position: [bool, true]
+  rotation: [bool, true]
+  scale: [bool, true]

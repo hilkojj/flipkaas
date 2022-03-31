@@ -1,5 +1,5 @@
 
-collisionMasks = include("scripts/entities/level_room/_collision_masks")
+masks = include("scripts/entities/level_room/_masks")
 
 loadRiggedModels("assets/models/cubeman.glb", false)
 loadColliderMeshes("assets/models/test_convex_colliders.obj", true)
@@ -13,7 +13,8 @@ function create(player)
             position = vec3(0, 1, 0)
         },
         RenderModel {
-            modelName = "SmallMan"
+            modelName = "SmallMan",
+            visibilityMask = masks.PLAYER
         },
         --[[
         Rigged {
@@ -34,8 +35,8 @@ function create(player)
             collider = Collider {
                 bounciness = 0,
                 frictionCoefficent = .1,
-                collisionCategoryBits = collisionMasks.DYNAMIC_CHARACTER,
-                collideWithMaskBits = collisionMasks.STATIC_TERRAIN | collisionMasks.SENSOR,
+                collisionCategoryBits = masks.DYNAMIC_CHARACTER,
+                collideWithMaskBits = masks.STATIC_TERRAIN | masks.SENSOR,
             }
         },
         SphereColliderShape {
@@ -50,12 +51,54 @@ function create(player)
         --Inspecting()
     })
 
+    local dropShadowSun = createChild(player, "drop shadow sun")
+    setComponents(dropShadowSun, {
+        Transform(),
+		TransformChild {
+			parentEntity = player,
+            offset = Transform {
+                position = vec3(0, 2.5, 0)
+            }
+		},
+        DirectionalLight {
+            color = vec3(-.7)
+        },
+        ShadowRenderer {
+            visibilityMask = masks.PLAYER,
+            resolution = ivec2(64),
+            frustrumSize = vec2(2),
+            farClipPlane = 16
+        }
+    })
+
     local cam = getByName("3rd_person_camera")
     if valid(cam) then
         setComponents(cam, {
             ThirdPersonFollowing {
                 target = player,
-                visibilityRayMask = collisionMasks.STATIC_TERRAIN
+                visibilityRayMask = masks.STATIC_TERRAIN
+            }
+        })
+    end
+
+    local sun = getByName("sun")
+    if valid(sun) then
+        local sunRot = quat:new()
+        sunRot.x = 21
+        sunRot.y = -21
+        sunRot.z = 0
+
+        setComponents(sun, {
+            TransformChild {
+                parentEntity = player,
+                offsetInWorldSpace = true,
+                position = true,
+                rotation = false,
+                scale = false,
+                offset = Transform {
+                    position = vec3(-67, 500, 179),
+                    rotation = sunRot
+                }
             }
         })
     end

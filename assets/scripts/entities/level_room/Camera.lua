@@ -12,7 +12,8 @@ function create(cam, args)
         CameraPerspective {
             fieldOfView = 75,
             nearClipPlane = .1,
-            farClipPlane = 1000
+            farClipPlane = 1000,
+            visibilityMask = -1
         }
     })
 

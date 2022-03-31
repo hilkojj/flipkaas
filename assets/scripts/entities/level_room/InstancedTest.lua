@@ -1,7 +1,7 @@
 
 persistenceMode(TEMPLATE | ARGS)
 
-collisionMasks = include("scripts/entities/level_room/_collision_masks")
+collisionMasks = include("scripts/entities/level_room/_masks")
 loadModels("assets/models/suzanne.glb", false)
 
 function create(e)

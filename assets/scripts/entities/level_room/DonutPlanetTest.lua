@@ -1,7 +1,7 @@
 
 persistenceMode(TEMPLATE | ARGS, {"Transform"})
 
-collisionMasks = include("scripts/entities/level_room/_collision_masks")
+collisionMasks = include("scripts/entities/level_room/_masks")
 
 defaultArgs({
 	donutRadius = 20,

@@ -1,7 +1,7 @@
 
 persistenceMode(TEMPLATE | ARGS, {"Transform"})
 
-collisionMasks = include("scripts/entities/level_room/_collision_masks")
+collisionMasks = include("scripts/entities/level_room/_masks")
 
 defaultArgs({
 	gravityRadius = 6,
@@ -90,7 +90,12 @@ function create(e, args)
 			offset = Transform {
 				position = vec3(0, args.height * -.5 - 2, 0)
 			}
-		}
+		},
+		SoundSpeaker {
+			sound = "sounds/fire0.ogg",
+			looping = true
+		},
+		PositionedAudio()
 	})
 	setComponents(cylToPlaneGrav, {
 		

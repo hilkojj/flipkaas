@@ -215,7 +215,7 @@ void dirLightRadiance(DirectionalLight light, vec3 N, vec3 V, vec3 F0, inout vec
     Lo += (kD * albedo / PI + specular) * radiance * NdotL;
 }
 
-void dirShadowLightRadiance(DirectionalShadowLight light, vec3 N, vec3 V, vec3 F0, inout vec3 Lo, float roughness, float metallic, vec3 albedo, sampler2DShadow map)
+void dirShadowLightRadiance(DirectionalShadowLight light, vec3 N, vec3 V, vec3 F0, inout vec3 Lo, float roughness, float metallic, vec3 albedo, sampler2DShadow map, inout float fakeShadow)
 {
     float shadow = 0.;
     if (useShadows == 1)
@@ -228,8 +228,20 @@ void dirShadowLightRadiance(DirectionalShadowLight light, vec3 N, vec3 V, vec3 F
             shadow = 1. - texture(map, shadowMapCoords.xyz);
             // OpenGL will use the Z component to compare this fragment's depth to the depth on the shadow map
             // OpenGL will return a value between 0 and 1, based on how much shadow this fragment should have.
+
+            if (light.light.color.x < 0)
+            {
+                shadow *= 1.f - shadowMapCoords.z;
+                fakeShadow += shadow * -light.light.color.x;
+                return;
+            }
         }
     }
+    if (light.light.color.x < 0)
+    {
+        return;
+    }
+
     dirLightRadiance(light.light, N, V, F0, Lo, roughness, metallic, albedo, shadow);
 }
 
@@ -293,20 +305,22 @@ void main()
     }
     #endif
 
+    float fakeShadow = 0.f;
+
     #if NR_OF_DIR_SHADOW_LIGHTS
     {   // Directional lights WITH SHADOW
 
         #if (NR_OF_DIR_SHADOW_LIGHTS >= 1)
-        dirShadowLightRadiance(dirShadowLights[0], N, V, F0, Lo, roughness, metallic, albedo, dirShadowMaps[0]);
+        dirShadowLightRadiance(dirShadowLights[0], N, V, F0, Lo, roughness, metallic, albedo, dirShadowMaps[0], fakeShadow);
         #endif
         #if (NR_OF_DIR_SHADOW_LIGHTS >= 2)
-        dirShadowLightRadiance(dirShadowLights[1], N, V, F0, Lo, roughness, metallic, albedo, dirShadowMaps[1]);
+        dirShadowLightRadiance(dirShadowLights[1], N, V, F0, Lo, roughness, metallic, albedo, dirShadowMaps[1], fakeShadow);
         #endif
         #if (NR_OF_DIR_SHADOW_LIGHTS >= 3)
-        dirShadowLightRadiance(dirShadowLights[2], N, V, F0, Lo, roughness, metallic, albedo, dirShadowMaps[2]);
+        dirShadowLightRadiance(dirShadowLights[2], N, V, F0, Lo, roughness, metallic, albedo, dirShadowMaps[2], fakeShadow);
         #endif
         #if (NR_OF_DIR_SHADOW_LIGHTS >= 4)
-        dirShadowLightRadiance(dirShadowLights[3], N, V, F0, Lo, roughness, metallic, albedo, dirShadowMaps[3]);
+        dirShadowLightRadiance(dirShadowLights[3], N, V, F0, Lo, roughness, metallic, albedo, dirShadowMaps[3], fakeShadow);
         #endif
     }
     #endif
@@ -329,6 +343,7 @@ void main()
     vec3 ambient = (kD * diffuseColor + specularColor) * ao;
 
     vec3 color = ambient + Lo;
+    color *= 1. - fakeShadow;
 
     // gamma correction:
     colorOut.rgb = pow(color, vec3(1.0 / GAMMA));

@@ -12,6 +12,7 @@
 #include "../../ecs/systems/PhysicsSystem.h"
 #include "../../ecs/systems/GravitySystem.h"
 #include "../../ecs/systems/CharacterMovementSystem.h"
+#include "../../ecs/systems/PositionedAudioSystem.h"
 
 Room3D::Room3D()
 {
@@ -33,6 +34,7 @@ Room3D::Room3D()
     addSystem(physics);
     addSystem(new GravitySystem("Gravity fields"));
     addSystem(new CharacterMovementSystem("Character movement"));
+    addSystem(new PositionedAudioSystem("Positioned audio"));
 }
 
 vec3 Room3D::getPosition(entt::entity e) const
@@ -105,12 +107,35 @@ void Room3D::update(double deltaTime)
 
         if (auto parentTransComp = entities.try_get<Transform>(child.parentEntity))
         {
-            mat4 parentTrans = transformFromComponent(*parentTransComp);
-            mat4 childTrans = transformFromComponent(child.offset);
-            mat4 resultTrans = parentTrans * childTrans;
+            if (child.offsetInWorldSpace)
+            {
+                t.position = child.position ? (*parentTransComp).position : mu::ZERO_3;
+                t.rotation = child.rotation ? (*parentTransComp).rotation : quat(1, 0, 0, 0);
+                t.scale = child.scale ? (*parentTransComp).scale : mu::ONE_3;
 
-            // TODO: not sure this is the fastest way
-            decomposeMtx(resultTrans, t.position, t.rotation, t.scale);
+                t.position += child.offset.position;
+                t.rotation = child.offset.rotation * t.rotation;
+                t.scale = child.offset.scale * t.scale;
+            }
+            else
+            {
+                mat4 parentTrans(1.0f);
+
+                if (child.position)
+                    parentTrans = glm::translate(parentTrans, (*parentTransComp).position);
+
+                if (child.rotation)
+                    parentTrans *= glm::toMat4((*parentTransComp).rotation);
+
+                if (child.scale)
+                    parentTrans = glm::scale(parentTrans, (*parentTransComp).scale);
+
+                mat4 childTrans = transformFromComponent(child.offset);
+                mat4 resultTrans = parentTrans * childTrans;
+
+                // TODO: not sure this is the fastest way
+                decomposeMtx(resultTrans, t.position, t.rotation, t.scale);
+            }
         }
     });
 

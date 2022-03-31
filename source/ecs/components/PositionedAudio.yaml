@@ -1,0 +1,5 @@
+
+PositionedAudio @dirtyable:
+  rollOffFactor: [float, 1]
+  referenceDistance: [float, 1]
+  maxDistance: [float, 1000]
