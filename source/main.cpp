@@ -43,6 +43,17 @@ void addAssetLoaders()
 
         return new Palette(path.c_str());
     });
+    AssetManager::addAssetLoader<EnvironmentMap>(".hdr", [](auto &path) {
+
+        auto map = new EnvironmentMap;
+        map->original = SharedCubeMap(new CubeMap(CubeMap::fromHDRFile(path.c_str(), 512)));
+
+        // this order is important:
+        map->prefilterReflectionMap(Game::settings.graphics.prefilteredReflectionMapResolution);
+        map->createIrradianceMap(32, Game::settings.graphics.convolutionStepDelta);
+
+        return map;
+    });
 }
 
 void initLuaStuff()
@@ -74,21 +85,6 @@ void initLuaStuff()
     };
 }
 
-void addAssetLoaders()
-{
-    AssetManager::addAssetLoader<EnvironmentMap>(".hdr", [] (auto &path) {
-
-        auto map = new EnvironmentMap;
-        map->original = SharedCubeMap(new CubeMap(CubeMap::fromHDRFile(path.c_str(), 512)));
-
-        // this order is important:
-        map->prefilterReflectionMap(Game::settings.graphics.prefilteredReflectionMapResolution);
-        map->createIrradianceMap(32, Game::settings.graphics.convolutionStepDelta);
-
-        return map;
-    });
-}
-
 int main(int argc, char *argv[])
 {
     addAssetLoaders();
@@ -111,7 +107,7 @@ int main(int argc, char *argv[])
     gu::setScreen(new GameScreen);
 
     auto onResize = gu::onResize += [] {
-        ShaderDefinitions::defineInt("PIXEL_SCALING", Game::settings.graphics.uiPixelScaling);
+        ShaderDefinitions::global().defineInt("PIXEL_SCALING", Game::settings.graphics.uiPixelScaling);
     };
     gu::onResize();
 

@@ -24,7 +24,7 @@ loadOrCreateLevel(_G.levelToLoad)
 setComponents(createEntity(), {
     UIElement(),
     TextView {
-        text = "Deeptris v0.1",
+        text = "LDJam 50 - Theme ???",
         fontSprite = "sprites/ui/default_font"
     }
 })

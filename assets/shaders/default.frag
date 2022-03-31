@@ -229,7 +229,7 @@ void dirShadowLightRadiance(DirectionalShadowLight light, vec3 N, vec3 V, vec3 F
             // OpenGL will use the Z component to compare this fragment's depth to the depth on the shadow map
             // OpenGL will return a value between 0 and 1, based on how much shadow this fragment should have.
 
-            if (light.light.color.x < 0)
+            if (light.light.color.x < 0.f)
             {
                 shadow *= 1.f - shadowMapCoords.z;
                 fakeShadow += shadow * -light.light.color.x;
@@ -237,7 +237,7 @@ void dirShadowLightRadiance(DirectionalShadowLight light, vec3 N, vec3 V, vec3 F
             }
         }
     }
-    if (light.light.color.x < 0)
+    if (light.light.color.x < 0.f)
     {
         return;
     }
