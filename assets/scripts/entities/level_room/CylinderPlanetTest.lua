@@ -90,12 +90,7 @@ function create(e, args)
 			offset = Transform {
 				position = vec3(0, args.height * -.5 - 2, 0)
 			}
-		},
-		SoundSpeaker {
-			sound = "sounds/fire0.ogg",
-			looping = true
-		},
-		PositionedAudio()
+		}
 	})
 	setComponents(cylToPlaneGrav, {
 		

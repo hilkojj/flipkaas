@@ -24,7 +24,11 @@ void CharacterMovementSystem::update(double deltaTime, EntityEngine *)
 
         cm.walkDirInput.y = KeyInput::pressed(Game::settings.keyInput.walkForwards) - KeyInput::pressed(Game::settings.keyInput.walkBackwards);
         cm.walkDirInput.x = KeyInput::pressed(Game::settings.keyInput.walkRight) - KeyInput::pressed(Game::settings.keyInput.walkLeft);
-        cm.jumpInput = KeyInput::pressed(Game::settings.keyInput.jump);
+
+        cm.walkDirInput.x += GamepadInput::getAxis(0, Game::settings.gamepadInput.walkX);
+        cm.walkDirInput.y -= GamepadInput::getAxis(0, Game::settings.gamepadInput.walkY);
+
+        cm.jumpInput = KeyInput::pressed(Game::settings.keyInput.jump) || GamepadInput::pressed(0, Game::settings.gamepadInput.jump);
     });
 
     room->entities.view<CharacterMovement, Transform, RigidBody>().each([&](auto e, CharacterMovement &cm, Transform &t, RigidBody &rb) {
@@ -131,7 +135,7 @@ void CharacterMovementSystem::update(double deltaTime, EntityEngine *)
 
             vec3 currVerticalVel = localToWorld * vec4(0, currVelLocal.y, 0, 0);
 
-            vec3 velocity = forward * cm.walkDirInput.y * cm.walkSpeed + currVerticalVel;
+            vec3 velocity = forward * min(1.f, (cm.walkDirInput.y + abs(cm.walkDirInput.x * .3f))) * cm.walkSpeed + currVerticalVel;
 
             velocity = mix(currVelocity, velocity, min(1.f, dT * 10.f + justLanded));
             physics.setLinearVelocity(rb, velocity);

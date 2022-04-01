@@ -47,6 +47,7 @@ function create(player)
             defaultGravity = vec3(0, -30, 0)
         },
         CharacterMovement {
+            inputInCameraSpace = true
         }
         --Inspecting()
     })
@@ -117,5 +118,9 @@ function create(player)
         component.RigidBody.getFor(player):dirty().gravity = vec3(0, -10, 0)
     end)
 
+    listenToGamepadButton(player, 0, gameSettings.gamepadInput.test, "test")
+    onEntityEvent(player, "test_pressed", function()
+        print("epic")
+    end)
 end
 

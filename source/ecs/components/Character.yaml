@@ -6,6 +6,7 @@ CharacterMovement:
 
   walkDirInput: vec2
   jumpInput: bool
+  inputInCameraSpace: bool
 
   # will be set, kinda readonly:
   onGround: bool
