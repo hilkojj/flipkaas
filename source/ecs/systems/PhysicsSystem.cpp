@@ -581,8 +581,10 @@ void PhysicsSystem::update(double deltaTime, EntityEngine* room)
                     const btManifoldPoint &pt = manifold->getContactPoint(p);
                     
                     col->contactPoints.push_back(btToVec3(j == 0 ? pt.getPositionWorldOnA() : pt.getPositionWorldOnB()));
+                    col->impact += pt.getAppliedImpulse();
                     // todo: lots of interesting stuff like normals
                 }
+                col->otherCategoryBits = colliders[j ^ 1]->collisionCategoryBits;
             }
         }
 

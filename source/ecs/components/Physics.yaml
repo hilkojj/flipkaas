@@ -11,8 +11,10 @@ config:
 
 Collision @not_a_component:
   otherEntity: entt::entity
+  otherCategoryBits: int
   contactPoints: std::vector<vec3>
   duration: float
+  impact: float
   _cpp_only:
     hasEndedTest: bool
 

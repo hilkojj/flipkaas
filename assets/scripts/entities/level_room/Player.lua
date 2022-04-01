@@ -42,6 +42,7 @@ function create(player)
                 frictionCoefficent = .1,
                 collisionCategoryBits = masks.DYNAMIC_CHARACTER,
                 collideWithMaskBits = masks.STATIC_TERRAIN | masks.SENSOR,
+                registerCollisions = true
             }
         },
         SphereColliderShape {
@@ -127,5 +128,13 @@ function create(player)
     onEntityEvent(player, "test_pressed", function()
         print("epic")
     end)
+
+    onEntityEvent(player, "Collision", function (col)
+        
+        if col.otherCategoryBits & masks.STATIC_TERRAIN ~= 0 then
+            print("player hit: "..(getName(col.otherEntity) or col.otherEntity))
+            print(col.impact)
+        end
+	end)
 end
 
