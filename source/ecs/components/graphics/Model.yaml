@@ -2,12 +2,22 @@ config:
   hpp_incl:
     - graphics/3d/armature.h
     - ../level/room/Room3D.h
+    - graphics/shader_asset.h
     - set
 
 
 RenderModel:
   modelName: std::string
   visibilityMask: [uint, 1]
+
+CustomShader @dirtyable:
+  vertexShaderPath: std::string
+  fragmentShaderPath: std::string
+  defines: std::map<std::string, std::string>
+
+  _cpp_only:
+    shader: std::shared_ptr<ShaderAsset>
+    currentHash: size_t
 
 InstancedRendering @dirtyable:
   transformEntities: std::set<entt::entity>

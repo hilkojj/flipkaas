@@ -43,6 +43,8 @@ layout (location = 0) out vec4 colorOut;
 layout (location = 1) out vec4 brightColor;
 #endif
 
+uniform float time;
+
 uniform vec3 diffuse;
 uniform vec2 metallicRoughnessFactors;
 
@@ -364,6 +366,11 @@ void main()
         brightColor.rgb = vec3(0);
 
     brightColor.a = colorOut.a;
+
+    #ifdef TEST
+    
+    brightColor.rgb += vec3(colorOut.rgb) * (sin((v_position.x + v_position.y) * 3. + time * 2.) + 1.);
+    #endif
     #endif
 }
 

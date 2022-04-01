@@ -16,6 +16,11 @@ function create(e)
         },
 		InstancedRendering {
 		},
+		CustomShader {
+            vertexShaderPath = "shaders/default.vert",
+            fragmentShaderPath = "shaders/default.frag",
+            defines = {TEST = "1", INSTANCED = "1"}
+        },
 		Transform {
 			position = vec3(0, 10, 0)
 		},

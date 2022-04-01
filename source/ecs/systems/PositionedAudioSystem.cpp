@@ -11,6 +11,8 @@ void PositionedAudioSystem::init(EntityEngine *engine)
     updateFrequency = 60;
 
     alDistanceModel(AL_INVERSE_DISTANCE_CLAMPED); // "it’s the default and the one most suited for video game applications". Ok. https://indiegamedev.net/2020/04/12/the-complete-guide-to-openal-with-c-part-3-positioning-sounds/
+
+    room->entities.on_construct<PositionedAudio>().connect<&PositionedAudioSystem::onComponentAdded>(this);
 }
 
 void PositionedAudioSystem::update(double deltaTime, EntityEngine *)

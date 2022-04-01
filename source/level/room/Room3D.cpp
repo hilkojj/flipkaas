@@ -13,6 +13,7 @@
 #include "../../ecs/systems/GravitySystem.h"
 #include "../../ecs/systems/CharacterMovementSystem.h"
 #include "../../ecs/systems/PositionedAudioSystem.h"
+#include "../../ecs/systems/graphics/CustomShaderSystem.h"
 
 Room3D::Room3D()
 {
@@ -35,6 +36,7 @@ Room3D::Room3D()
     addSystem(new GravitySystem("Gravity fields"));
     addSystem(new CharacterMovementSystem("Character movement"));
     addSystem(new PositionedAudioSystem("Positioned audio"));
+    addSystem(new CustomShaderSystem("Custom shaders"));
 }
 
 vec3 Room3D::getPosition(entt::entity e) const

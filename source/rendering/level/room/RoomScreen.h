@@ -29,7 +29,8 @@ class RoomScreen : public Screen
             uploadLightData = true,
             shadows = true,
             materials = true,
-            riggedModels = true;
+            riggedModels = true,
+            customShaders = true;
         ShaderProgram *skyShader = NULL;
         CubeMap *skyBox = NULL;
     };

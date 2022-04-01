@@ -13,6 +13,7 @@
 #include "../../../game/Game.h"
 #include "EnvironmentMap.h"
 #include "../../../ecs/systems/PhysicsSystem.h"
+#include "../../../ecs/systems/graphics/CustomShaderSystem.h"
 
 #include <generated/Inspecting.hpp>
 #include <im3d.h>
@@ -136,6 +137,7 @@ void RoomScreen::render(double deltaTime)
             shadowMapCon.mask = sr.visibilityMask;
             shadowMapCon.lights = false;
             shadowMapCon.materials = false;
+            shadowMapCon.customShaders = false;
             shadowMapCon.filter = [&] (auto e) { return room->entities.has<ShadowCaster>(e); };
             glCullFace(GL_FRONT);
             renderRoom(shadowMapCon);
@@ -422,14 +424,17 @@ void RoomScreen::renderRoom(const RenderContext &con)
     gu::profiler::Zone z("render models");
 
     initializeShader(con, con.shader);
+
     room->entities.view<Transform, RenderModel>(entt::exclude<Rigged, InstancedRendering>).each([&](auto e, Transform &t, RenderModel &rm) {
         if (con.filter && !con.filter(e)) return;
+        if (con.customShaders && room->entities.has<CustomShader>(e)) return; // TODO: move to entt::exclude.
         renderModel(con, con.shader, e, t, rm);
     });
 
     bool firstInstanced = true;
     room->entities.view<RenderModel, InstancedRendering>(entt::exclude<Rigged>).each([&](auto e, RenderModel &rm, InstancedRendering &ir) {
         if (con.filter && !con.filter(e)) return;
+        if (con.customShaders && room->entities.has<CustomShader>(e)) return; // TODO: move to entt::exclude.
 
         if (firstInstanced)
         {
@@ -440,6 +445,40 @@ void RoomScreen::renderRoom(const RenderContext &con)
         renderInstancedModels(con, con.instancedShader, e, rm, ir.data);
     });
 
+    if (con.customShaders)
+    {
+        auto &collections = CustomShaderSystem::getEntitiesPerShaderForRoom(room);
+        for (auto &[shader, entities] : collections)
+        {
+            if (entities.empty())
+                continue;
+
+            initializeShader(con, *shader.get());
+
+            for (auto e : entities)
+            {
+                Transform *t = room->entities.try_get<Transform>(e);
+                RenderModel *rm = room->entities.try_get<RenderModel>(e);
+                
+                if (!t || !rm)
+                    continue;
+
+                if (InstancedRendering *ir = room->entities.try_get<InstancedRendering>(e))
+                {
+                    renderInstancedModels(con, *shader.get(), e, *rm, ir->data);
+                }
+                else if (Rigged *rig = room->entities.try_get<Rigged>(e))
+                {
+                    renderModel(con, *shader.get(), e, *t, *rm, rig);
+                }
+                else
+                {
+                    renderModel(con, *shader.get(), e, *t, *rm);
+                }
+            }
+        }
+    }
+
     if (con.riggedModels)
     {
         gu::profiler::Zone z1("rigged models");
@@ -447,6 +486,7 @@ void RoomScreen::renderRoom(const RenderContext &con)
         bool first = true;
         room->entities.view<Transform, RenderModel, Rigged>().each([&](auto e, Transform &t, RenderModel &rm, Rigged &rig) {
             if (con.filter && !con.filter(e)) return;
+            if (con.customShaders && room->entities.has<CustomShader>(e)) return; // TODO: move to entt::exclude.
             if (first)
             {
                 initializeShader(con, con.riggedShader);
@@ -610,7 +650,7 @@ void RoomScreen::renderInstancedModels(const RenderContext &con, ShaderProgram &
 
 void RoomScreen::initializeShader(const RenderContext &con, ShaderProgram &shader)
 {
-    if (con.lights && con.uploadLightData)
+    if (con.lights && con.uploadLightData && !shader.definitions.isDefined("NO_LIGHTS"))
     {
         auto plView = room->entities.view<Transform, PointLight>();
         int nrOfPointLights = plView.size();
@@ -679,7 +719,7 @@ void RoomScreen::initializeShader(const RenderContext &con, ShaderProgram &shade
     }
     else shader.use();
 
-    if (room->environmentMap.isSet())
+    if (room->environmentMap.isSet() && !shader.definitions.isDefined("NO_IBL"))
     {
         room->environmentMap->irradianceMap->bind(IRRADIANCE_MAP_TEX_UNIT);
         glUniform1i(shader.location(IRRADIANCE_UNI_NAME), IRRADIANCE_MAP_TEX_UNIT);
@@ -693,6 +733,7 @@ void RoomScreen::initializeShader(const RenderContext &con, ShaderProgram &shade
     // todo: else dummy cube texture?
 
     glUniform3fv(shader.location("camPosition"), 1, &con.cam.position[0]);
+    glUniform1f(shader.location("time"), room->getLevel().getTime());
 }
 
 void RoomScreen::debugLights()

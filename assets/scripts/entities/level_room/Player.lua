@@ -17,6 +17,11 @@ function create(player)
             visibilityMask = masks.PLAYER
         },
         --[[
+        CustomShader {
+            vertexShaderPath = "shaders/default.vert",
+            fragmentShaderPath = "shaders/default.frag",
+            defines = {TEST = "1"}
+        },
         Rigged {
             playingAnimations = {
                 PlayAnimation {
