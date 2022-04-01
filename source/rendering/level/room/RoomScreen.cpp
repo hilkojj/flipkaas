@@ -463,6 +463,20 @@ void RoomScreen::renderRoom(const RenderContext &con)
                 if (!t || !rm)
                     continue;
 
+                if (CustomShader *cs = room->entities.try_get<CustomShader>(e))
+                {
+                    for (auto &[key, val] : cs->uniformsFloat)
+                        glUniform1f(shader->location(key.c_str()), val);
+                    for (auto &[key, val] : cs->uniformsInt)
+                        glUniform1i(shader->location(key.c_str()), val);
+                    for (auto &[key, val] : cs->uniformsVec2)
+                        glUniform2f(shader->location(key.c_str()), val.x, val.y);
+                    for (auto &[key, val] : cs->uniformsVec3)
+                        glUniform3f(shader->location(key.c_str()), val.x, val.y, val.z);
+                    for (auto &[key, val] : cs->uniformsVec4)
+                        glUniform4f(shader->location(key.c_str()), val.x, val.y, val.z, val.w);
+                }
+
                 if (InstancedRendering *ir = room->entities.try_get<InstancedRendering>(e))
                 {
                     renderInstancedModels(con, *shader.get(), e, *rm, ir->data);

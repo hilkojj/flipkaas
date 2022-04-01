@@ -15,6 +15,12 @@ CustomShader @dirtyable:
   fragmentShaderPath: std::string
   defines: std::map<std::string, std::string>
 
+  uniformsVec4: std::map<std::string, vec4>
+  uniformsVec3: std::map<std::string, vec3>
+  uniformsVec2: std::map<std::string, vec2>
+  uniformsFloat: std::map<std::string, float>
+  uniformsInt: std::map<std::string, int>
+
   _cpp_only:
     shader: std::shared_ptr<ShaderAsset>
     currentHash: size_t

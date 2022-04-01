@@ -38,6 +38,10 @@ in mat3 v_TBN;
 in float v_fog;
 #endif
 
+#ifdef TEST
+uniform vec3 testColor;
+#endif
+
 layout (location = 0) out vec4 colorOut;
 #if BLOOM
 layout (location = 1) out vec4 brightColor;
@@ -369,7 +373,7 @@ void main()
 
     #ifdef TEST
     
-    brightColor.rgb += vec3(colorOut.rgb) * (sin((v_position.x + v_position.y) * 3. + time * 2.) + 1.);
+    brightColor.rgb += testColor * (sin((v_position.x + v_position.y) * 3. + time * 2.) + 1.);
     #endif
     #endif
 }

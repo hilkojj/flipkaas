@@ -115,6 +115,8 @@ int main(int argc, char *argv[])
 
     Game::uiScreenManager->openScreen(asset<luau::Script>("scripts/ui_screens/StartupScreen"));
 
+    Game::spriteSheet.printUsage();
+
     dibidab::run();
 
     Game::saveSettings();

@@ -19,7 +19,8 @@ function create(e)
 		CustomShader {
             vertexShaderPath = "shaders/default.vert",
             fragmentShaderPath = "shaders/default.frag",
-            defines = {TEST = "1", INSTANCED = "1"}
+            defines = {TEST = "1", INSTANCED = "1"},
+			uniformsVec3 = {testColor = vec3(2, 0, 0)}
         },
 		Transform {
 			position = vec3(0, 10, 0)
