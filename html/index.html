@@ -26,10 +26,34 @@
             transform: translate(-50%, -50%);
         }
 
+        #loading {
+            position: absolute;
+            top: calc(50% - 100px);
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            color: white;
+            text-align: center;
+            perspective: 396px;
+        }
+
+        #ldlogo {
+            padding: 10px;
+            width: 100%;
+        }
+
     </style>
 </head>
 
 <body onresize="makeCanvasFullPage()">
+
+    <div id="loading">
+
+        A game made for the 50th Ludum Dare.
+
+        <img id="ldlogo" src="html_assets/ldlogo.svg" />
+
+    </div>
 
     <progress id="progress" max="100" value="0"></progress>
     
@@ -42,6 +66,7 @@
         //     location.replace(location.href.replace("https", "http"))
         // }
 
+        const loadingDivElement = document.getElementById('loading')
         const progressElement = document.getElementById('progress')
         const canvas = document.getElementById('canvas')
 
@@ -68,11 +93,19 @@
                 if (m) {
                     progressElement.value = parseInt(m[2]) * 100
                     progressElement.max = parseInt(m[4]) * 100
+
+                    let perc = progressElement.value / progressElement.max;
+
+                    if (perc) {
+                        document.getElementById("ldlogo").style.transform = "rotate3d(0, 1, 0, " + (((-30 + 60 * perc) % 360) + 360) % 360 + "deg)";
+                    }
+
                     progressElement.hidden = false
                 } else {
                     progressElement.value = null
                     progressElement.max = null
                     progressElement.hidden = true
+                    loadingDivElement.hidden = true;
                 }
             },
             totalDependencies: 0,

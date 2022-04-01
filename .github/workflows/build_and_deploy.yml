@@ -98,6 +98,7 @@ jobs:
         emconfigure cmake .
         emconfigure cmake .
         make -j8
+        cp -r ./html_assets ./out/html_assets   # e.g. images used in index.html
     - name: Upload Artifacts # The project is then uploaded as an artifact named 'site'.
       uses: actions/upload-artifact@v1
       with:
