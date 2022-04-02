@@ -38,10 +38,6 @@ in mat3 v_TBN;
 in float v_fog;
 #endif
 
-#ifdef TEST
-uniform vec3 testColor;
-#endif
-
 layout (location = 0) out vec4 colorOut;
 #if BLOOM
 layout (location = 1) out vec4 brightColor;
@@ -341,6 +337,9 @@ void main()
     vec3 irradiance = texture(irradianceMap, N).rgb;
     vec3 diffuseColor = irradiance * albedo;
 
+    // TODO: ldjam hack
+    diffuseColor += vec3(pow(1.f - dot(N, V), 5.f)) * (albedo + vec3(1.f));
+
     const float MAX_REFLECTION_LOD = 4.;
     vec3 prefilteredColor = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
     vec2 envBRDF = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
@@ -357,6 +356,13 @@ void main()
     #if FOG
     // fog:
     colorOut.a = v_fog;
+
+    #ifdef FOG_BASED_ON_HEIGHT
+    
+    colorOut.a = max(min(v_fog, (v_position.y + 70.f)/100.f), 0.f);
+
+    #endif
+
     #else
     colorOut.a = 1.;
     #endif
@@ -371,10 +377,6 @@ void main()
 
     brightColor.a = colorOut.a;
 
-    #ifdef TEST
-    
-    brightColor.rgb += testColor * (sin((v_position.x + v_position.y) * 3. + time * 2.) + 1.);
-    #endif
     #endif
 }
 

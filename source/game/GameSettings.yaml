@@ -15,7 +15,7 @@ GraphicsSettings @not_a_component @json_with_keys:
   shadows: [bool, true]
   maxArmatureBones: [uint, 64]
   fogStart: [float, 30]
-  fogEnd: [float, 60]
+  fogEnd: [float, 200]
   fogEnabled: [bool, true]
 
   prefilteredReflectionMapResolution: [uint, 256]

@@ -11,7 +11,8 @@ uniform float exposure;
 
 vec3 standard(vec3 x)
 {
-    return vec3(1.0) - exp(-x * exposure);
+    // TODO: ldjam hack:
+    return (vec3(1.0) - exp(-x * exposure * .5)) * 2.;
 }
 
 void main()

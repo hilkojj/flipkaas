@@ -10,7 +10,7 @@ function create(player)
 
     setComponents(player, {
         Transform {
-            position = vec3(0, 1, 0)
+            position = vec3(0, 10, 0)
         },
         RenderModel {
             modelName = "SmallMan",
@@ -83,7 +83,9 @@ function create(player)
         setComponents(cam, {
             ThirdPersonFollowing {
                 target = player,
-                visibilityRayMask = masks.STATIC_TERRAIN
+                visibilityRayMask = masks.STATIC_TERRAIN,
+                backwardsDistance = 20,
+                upwardsDistance = 13
             }
         })
     end

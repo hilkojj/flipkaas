@@ -190,6 +190,21 @@ void CharacterMovementSystem::update(double deltaTime, EntityEngine *)
 
                 camOffsetDir /= camOffsetLen;
 
+                // TODO: temp hack for ldjam
+                {
+                    vec3 hapman(0, 0, 75);
+                    vec3 hapdiff = t.position - hapman;
+                    if (t.position != hapman)
+                    {
+                        auto hapdir = normalize(hapdiff);
+                        camOffsetDir = hapdir * .8f + camOffsetDir * .2f;
+                        camOffsetLen = length(camOffsetDir);
+                        if (camOffsetLen > 0)
+                            camOffsetDir /= camOffsetLen;
+                    }
+
+                }
+
                 //vec3 camOffsetDirTargetSpace = worldToTarget * vec4(camOffsetDir, 0.f);
 
                 vec3 currentPos = t.position;//worldToTarget * vec4(t.position, 1);
