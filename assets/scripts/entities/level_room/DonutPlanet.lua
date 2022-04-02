@@ -3,17 +3,16 @@ persistenceMode(TEMPLATE | ARGS, {"Transform"})
 
 collisionMasks = include("scripts/entities/level_room/_masks")
 
-defaultArgs({
-	donutRadius = 20,
-	gravityRadius = 20
-})
+loadColliderMeshes("assets/models/donut.obj", false)
+
 
 function create(e, args)
 	
     setName(e, "donut planet")
 	
 	local grav = createChild(e, "gravity field")
-
+	local donutRadius = 24
+	local gravityRadius = 25
 
 	setComponents(e, {
 		RigidBody {
@@ -31,10 +30,24 @@ function create(e, args)
 		RenderModel {
 			modelName = "Donut"
 		},
+		CustomShader {
+            vertexShaderPath = "shaders/default.vert",
+            fragmentShaderPath = "shaders/default.frag",
+            defines = {BITE = "1"},
+			uniformsFloat = { biteZ = 75 },
+        },
 		ShadowCaster(),
 		ShadowReceiver()
 	})
-	component.Transform.getFor(e).scale = vec3(args.donutRadius)
+	--component.Transform.getFor(e).scale = vec3(donutRadius)
+
+	
+	setUpdateFunction(e, .05, function()
+	
+		local uniforms = component.CustomShader.getFor(e):dirty().uniformsFloat
+		uniforms["biteZ"] = _G.biteZ
+	
+	end)
 
 	setComponents(grav, {
 		
@@ -51,14 +64,14 @@ function create(e, args)
 			}
 		},
 		BoxColliderShape {
-			halfExtents = vec3(args.donutRadius + args.gravityRadius, args.gravityRadius, args.donutRadius + args.gravityRadius)
+			halfExtents = vec3(donutRadius + gravityRadius, gravityRadius, donutRadius + gravityRadius)
 		},
 		GravityField {
 			priority = 0
 		},
 		DonutGravityFunction {
-			donutRadius = args.donutRadius,
-			gravityRadius = args.gravityRadius
+			donutRadius = donutRadius,
+			gravityRadius = gravityRadius
 		}
 	})
 

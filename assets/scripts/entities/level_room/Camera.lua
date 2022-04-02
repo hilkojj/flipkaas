@@ -14,7 +14,7 @@ function create(cam, args)
             nearClipPlane = .1,
             farClipPlane = 1000,
             visibilityMask = -1
-        }
+        },
     })
 
     component.Transform.getFor(cam)

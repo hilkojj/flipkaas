@@ -31,12 +31,13 @@ Room3D::Room3D()
         .add_(VertAttributes::WEIGHTS);
 
     physics = new PhysicsSystem("Physics");
-    addSystem(new ArmatureAnimationSystem("Armature animations"));
     addSystem(physics);
     addSystem(new GravitySystem("Gravity fields"));
     addSystem(new CharacterMovementSystem("Character movement"));
     addSystem(new PositionedAudioSystem("Positioned audio"));
     addSystem(new CustomShaderSystem("Custom shaders"));
+    addSystem(new ArmatureAnimationSystem("Armature animations"));
+
 }
 
 vec3 Room3D::getPosition(entt::entity e) const

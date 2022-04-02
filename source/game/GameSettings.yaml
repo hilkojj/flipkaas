@@ -41,14 +41,14 @@ KeyInputSettings @not_a_component @json_with_keys:
   jump: [KeyInput::Key, GLFW_KEY_SPACE]
 
   flyCamera: [KeyInput::Key, GLFW_KEY_F9]
-  retryLevel: [KeyInput::Key, GLFW_KEY_F10]
+  retryLevel: [KeyInput::Key, GLFW_KEY_R]
   stopFlyingCamera: [KeyInput::Key, GLFW_KEY_ESCAPE]
 
   moveEntity: [KeyInput::Key, GLFW_KEY_G]
   gizmoNeedCtrl: [bool, true]
   gizmoToggleLocal: [KeyInput::Key, GLFW_KEY_L]
   gizmoTranslate: [KeyInput::Key, GLFW_KEY_T]
-  gizmoRotate: [KeyInput::Key, GLFW_KEY_R]
+  gizmoRotate: [KeyInput::Key, GLFW_KEY_Q]
   gizmoScale: [KeyInput::Key, GLFW_KEY_S]
 
 GamepadInputSettings @not_a_component @json_with_keys:

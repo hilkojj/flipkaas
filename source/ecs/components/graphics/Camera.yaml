@@ -6,6 +6,9 @@ CameraPerspective:
 
 ThirdPersonFollowing:
   target: [entt::entity, entt::null]
+  boss: [entt::entity, entt::null]
+  bossInfluence: [float, .8]
+  bossOffset: [vec3, vec3(0)]
   backwardsDistance: [float, 8]
   upwardsDistance: [float, 3]
   minDistance: [float, 14]

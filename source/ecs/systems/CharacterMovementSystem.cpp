@@ -31,6 +31,8 @@ void CharacterMovementSystem::update(double deltaTime, EntityEngine *)
         cm.jumpInput = KeyInput::pressed(Game::settings.keyInput.jump) || GamepadInput::pressed(0, Game::settings.gamepadInput.jump);
     });
 
+    std::vector<entt::entity> emitJumps;
+
     room->entities.view<CharacterMovement, Transform, RigidBody>().each([&](auto e, CharacterMovement &cm, Transform &t, RigidBody &rb) {
 
         vec3 oldForward = rotate(t.rotation, -mu::Z);  // based on camera.cpp // todo: normalize?
@@ -55,7 +57,7 @@ void CharacterMovementSystem::update(double deltaTime, EntityEngine *)
         }
 
         forward /= forwardLen;
-        t.rotation = slerp(t.rotation, quatLookAt(forward, up), min(dT * 10.f, 1.f));
+        t.rotation = slerp(t.rotation, quatLookAt(forward, up), min(dT * 7.f, 1.f));
         vec3 interpolatedForward = rotate(t.rotation, -mu::Z);
 
         // --------------------
@@ -131,6 +133,7 @@ void CharacterMovementSystem::update(double deltaTime, EntityEngine *)
                 cm.leftGroundSinceJumpStarted = false;
                 cm.holdingJumpEnded = false;
                 cm.jumpDescend = false;
+                emitJumps.push_back(e);
             }
 
             vec3 currVerticalVel = localToWorld * vec4(0, currVelLocal.y, 0, 0);
@@ -162,6 +165,9 @@ void CharacterMovementSystem::update(double deltaTime, EntityEngine *)
         t.rotation = rotate(t.rotation, cm.walkDirInput.x * dT * -2.f * rotateAmount, mu::Y);
     });
 
+    for (auto &jumpEntity : emitJumps)
+        room->emitEntityEvent(jumpEntity, true, "Jump");
+
     room->entities.view<Transform, ThirdPersonFollowing>().each([&](auto e, Transform &t, ThirdPersonFollowing &following) {
 
         if (!room->entities.valid(following.target) || !room->entities.has<Transform>(following.target))
@@ -190,14 +196,14 @@ void CharacterMovementSystem::update(double deltaTime, EntityEngine *)
 
                 camOffsetDir /= camOffsetLen;
 
-                // TODO: temp hack for ldjam
+                if (room->entities.valid(following.boss) && room->entities.has<Transform>(following.boss))
                 {
-                    vec3 hapman(0, 0, 75);
+                    vec3 hapman = room->entities.get<Transform>(following.boss).position + following.bossOffset;
                     vec3 hapdiff = t.position - hapman;
                     if (t.position != hapman)
                     {
                         auto hapdir = normalize(hapdiff);
-                        camOffsetDir = hapdir * .8f + camOffsetDir * .2f;
+                        camOffsetDir = hapdir * following.bossInfluence + camOffsetDir * (1.f - following.bossInfluence);
                         camOffsetLen = length(camOffsetDir);
                         if (camOffsetLen > 0)
                             camOffsetDir /= camOffsetLen;

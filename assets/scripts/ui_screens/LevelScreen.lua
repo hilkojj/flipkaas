@@ -1,5 +1,6 @@
 
 _G.hudScreen = currentEngine
+_G.titleScreen = false
 
 onEvent("BeforeDelete", function()
     loadOrCreateLevel(nil)
@@ -8,16 +9,39 @@ onEvent("BeforeDelete", function()
     end
 end)
 
+_G.retryLevel = function()
+    if screenTransitionStarted then
+        return
+    end
+
+    startScreenTransition("transitions/screen_transition0", "shaders/ui/transition_cutoff")
+    onEvent("ScreenTransitionStartFinished", function()
+
+        closeActiveScreen()
+        openScreen("scripts/ui_screens/LevelScreen")
+    end)
+end
+_G.goToMainMenu = function()
+    if screenTransitionStarted then
+        return
+    end
+
+    startScreenTransition("transitions/screen_transition0", "shaders/ui/transition_cutoff")
+    onEvent("ScreenTransitionStartFinished", function()
+
+        closeActiveScreen()
+        openScreen("scripts/ui_screens/StartupScreen")
+    end)
+end
+
+
 if _G.levelToLoad == nil then
     error("_G.levelToLoad is nil")
 end
 
 local levelRestarter = createEntity()
 listenToKey(levelRestarter, gameSettings.keyInput.retryLevel, "retry_key")
-onEntityEvent(levelRestarter, "retry_key_pressed", function()
-    closeActiveScreen()
-    openScreen("scripts/ui_screens/LevelScreen")
-end)
+onEntityEvent(levelRestarter, "retry_key_pressed", _G.retryLevel)
 
 loadOrCreateLevel(_G.levelToLoad)
 
@@ -28,3 +52,6 @@ setComponents(createEntity(), {
         fontSprite = "sprites/ui/default_font"
     }
 })
+applyTemplate(createEntity(), "HUD")
+
+endScreenTransition("transitions/screen_transition1", "shaders/ui/transition_cutoff")

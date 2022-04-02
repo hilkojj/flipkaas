@@ -26,10 +26,23 @@ function create(e, args)
 		RenderModel {
 			modelName = "Banana"
 		},
+		CustomShader {
+            vertexShaderPath = "shaders/default.vert",
+            fragmentShaderPath = "shaders/default.frag",
+            defines = {BITE = "1"},
+			uniformsFloat = { biteZ = 75 },
+        },
 		ShadowCaster(),
 		ShadowReceiver()
 	})
 	component.Transform.getFor(e)
+
+	setUpdateFunction(e, .05, function()
+	
+		local uniforms = component.CustomShader.getFor(e):dirty().uniformsFloat
+		uniforms["biteZ"] = _G.biteZ
+	
+	end)
 
 	for i = 1, 19 do
 			
@@ -57,16 +70,13 @@ function create(e, args)
 			6
 		}
 
-		print(i)
-		print(yOffsets[i])
-
 		setComponents(grav, {
 		
 			Transform(),
 			TransformChild {
 				parentEntity = e,
 				offset = Transform {
-					position = vec3(i * 3 - 30, yOffsets[i], 0)
+					position = vec3(i * 3 - 30, yOffsets[i] * 1.1, 0)
 				}
 			},
 			GhostBody {
@@ -78,16 +88,40 @@ function create(e, args)
 				}
 			},
 			SphereColliderShape {
-				radius = 15
+				radius = 18
 			},
 			GravityField {
-				priority = 0
+				priority = 1
 			},
 			SphereGravityFunction {
 			}
 		})
-
-
 	end
+
+	--[[
+	setComponents(createChild(e, "bigGrav"), {
+		
+		Transform(),
+		TransformChild {
+			parentEntity = e,
+		},
+		GhostBody {
+			collider = Collider {
+				collisionCategoryBits = collisionMasks.SENSOR,
+				collideWithMaskBits = collisionMasks.DYNAMIC_CHARACTER | collisionMasks.DYNAMIC_PROPS,
+				registerCollisions = true
+				-- todo: emit = false
+			}
+		},
+		SphereColliderShape {
+			radius = 70
+		},
+		GravityField {
+			priority = 0
+		},
+		SphereGravityFunction {
+		}
+	})
+	]]--
 
 end

@@ -43,6 +43,10 @@ layout (location = 0) out vec4 colorOut;
 layout (location = 1) out vec4 brightColor;
 #endif
 
+#ifdef BITE
+uniform float biteZ;
+#endif
+
 uniform float time;
 
 uniform vec3 diffuse;
@@ -252,6 +256,13 @@ void dirShadowLightRadiance(DirectionalShadowLight light, vec3 N, vec3 V, vec3 F
 
 void main()
 {
+    #ifdef BITE
+    float biteDiff = v_position.z + sin(v_position.x * 3.f) - biteZ;
+    if (biteDiff > 0.f)
+        discard;
+    #endif
+
+
     vec3 albedo = diffuse;
     if (useDiffuseTexture == 1)
     {
@@ -270,6 +281,13 @@ void main()
         metallic = mr.x;
         roughness = mr.y;
     }
+
+    
+    #ifdef BITE
+    float biteMix = clamp(-biteDiff * .2f - .3f, 0.f, 1.f);
+    albedo = mix(vec3(.1, .03, .02), albedo, biteMix);
+    roughness = mix(1.f, roughness, biteMix);
+    #endif
 
     float ao = 1.;
 
@@ -359,7 +377,7 @@ void main()
 
     #ifdef FOG_BASED_ON_HEIGHT
     
-    colorOut.a = max(min(v_fog, (v_position.y + 70.f)/100.f), 0.f);
+    colorOut.a = max(min(v_fog, (v_position.y + 100.f)/120.f), 0.f);
 
     #endif
 

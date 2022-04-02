@@ -1,19 +1,19 @@
 
 masks = include("scripts/entities/level_room/_masks")
 
-loadRiggedModels("assets/models/cubeman.glb", false)
-loadColliderMeshes("assets/models/test_convex_colliders.obj", true)
-loadColliderMeshes("assets/models/test_concave_colliders.obj", false)
+loadRiggedModels("assets/models/flyman.glb", false)
 
 function create(player)
     setName(player, "player")
+
+    _G.player = player
 
     setComponents(player, {
         Transform {
             position = vec3(0, 10, 0)
         },
         RenderModel {
-            modelName = "SmallMan",
+            modelName = "Flyman",
             visibilityMask = masks.PLAYER
         },
         --[[
@@ -22,15 +22,17 @@ function create(player)
             fragmentShaderPath = "shaders/default.frag",
             defines = {TEST = "1"}
         },
+        ]]--
+
         Rigged {
             playingAnimations = {
                 PlayAnimation {
-                    name = "testanim",
+                    name = "Idle",
                     influence = 1,
+                    loop = true
                 }
             }
         },
-        ]]--
         ShadowCaster(),
         RigidBody {
             gravity = vec3(0),
@@ -53,7 +55,10 @@ function create(player)
             defaultGravity = vec3(0, -30, 0)
         },
         CharacterMovement {
-            inputInCameraSpace = true
+            inputInCameraSpace = true,
+            walkSpeed = 13,
+            jumpForce = 1200,
+            fallingForce = 2000
         }
         --Inspecting()
     })
@@ -72,8 +77,8 @@ function create(player)
         },
         ShadowRenderer {
             visibilityMask = masks.PLAYER,
-            resolution = ivec2(64),
-            frustrumSize = vec2(2),
+            resolution = ivec2(200),
+            frustrumSize = vec2(7, 7),
             farClipPlane = 16
         }
     })
@@ -85,9 +90,14 @@ function create(player)
                 target = player,
                 visibilityRayMask = masks.STATIC_TERRAIN,
                 backwardsDistance = 20,
-                upwardsDistance = 13
+                upwardsDistance = 11,
+                boss = getByName("Hapman"),
+                bossInfluence = 0,
+                bossOffset = vec3(0, 160, 0)
             }
         })
+        component.ThirdPersonFollowing.animate(cam, "bossInfluence", .8, 1, "pow2Out")
+        setMainCamera(cam)
     end
 
     local sun = getByName("sun")
@@ -112,6 +122,7 @@ function create(player)
         })
     end
 
+    --[[
     onEntityEvent(player, "AnimationFinished", function(anim, unsub)
         print(anim.name.." has finished playing! Play it one more time but with less influence..")
         local anim = component.Rigged.getFor(player).playingAnimations[1]
@@ -125,18 +136,40 @@ function create(player)
         })
         component.RigidBody.getFor(player):dirty().gravity = vec3(0, -10, 0)
     end)
+    ]]--
 
     listenToGamepadButton(player, 0, gameSettings.gamepadInput.test, "test")
     onEntityEvent(player, "test_pressed", function()
         print("epic")
     end)
 
+    onEntityEvent(player, "Jump", function (col)
+        
+        component.Rigged.getFor(player).playingAnimations:add(PlayAnimation {
+            name = "Jump",
+            loop = false,
+        })
+	end)
+
     onEntityEvent(player, "Collision", function (col)
         
-        if col.otherCategoryBits & masks.STATIC_TERRAIN ~= 0 then
-            print("player hit: "..(getName(col.otherEntity) or col.otherEntity))
+        if col.otherCategoryBits & masks.STATIC_TERRAIN ~= 0 and col.impact > 20 then
+            -- hit floor
+            component.Rigged.getFor(player).playingAnimations:add(PlayAnimation {
+                name = "Land",
+                --influence = col.impact / 24,
+                loop = false,
+                timer = 3/24
+            })
             print(col.impact)
         end
 	end)
+
+    setUpdateFunction(player, 0, function()
+    
+        local trans = component.Transform.getFor(player)
+        trans.position.z = math.min(_G.biteZ - 1, trans.position.z)
+        
+    end)
 end
 

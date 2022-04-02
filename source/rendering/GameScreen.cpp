@@ -2,6 +2,7 @@
 #include <game/dibidab.h>
 #include "GameScreen.h"
 #include "../game/Game.h"
+#include "PaletteEditor.h"
 
 GameScreen::GameScreen()
 {
@@ -30,6 +31,23 @@ void GameScreen::render(double deltaTime)
 
     if (!dibidab::settings.showDeveloperOptions)
         return;
+
+    static PaletteEditor pE;
+    pE.drawGUI();
+
+    ImGui::BeginMainMenuBar();
+
+    if (ImGui::BeginMenu("Game"))
+    {
+        if (ImGui::BeginMenu("Graphics"))
+        {
+            if (ImGui::MenuItem("Palette Editor"))
+                pE.show = true;
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenu();
+    }
+    ImGui::EndMainMenuBar();
 }
 
 void GameScreen::onResize()
