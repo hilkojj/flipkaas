@@ -50,7 +50,7 @@ function create(hapman)
 
     _G.bite = function (travel)
 
-        --travel = 0
+        travel = 0
 
         print("initiating bite with travel = "..travel)
 

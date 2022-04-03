@@ -1,13 +1,13 @@
 GIMP Palette
 #
   0   0   0	transparent
-172 172 227	background
+224 242 255	background
  31  32  72	sky
 178 255   0	grass
 255 247 104	grass_dark
 255   5  22	brick
  55  39  60	brick_dark
-101  74 215	string
+  0 247 152	string
 236 150 123	skin
   1 133 144	hat
 233  55  93	rainbow_red

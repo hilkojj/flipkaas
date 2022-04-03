@@ -41,7 +41,7 @@ function create(e)
             }
         },
         SphereColliderShape {
-            radius = 4
+            radius = 5.5
         },
         
 	})
@@ -71,6 +71,11 @@ function create(e)
     setUpdateFunction(e, .8, function()
     
         local cannonTrans = component.Transform.getFor(e)
+
+        if cannonTrans.position.z < _G.biteZ - 200 then
+            return
+        end
+
         local dirEntityPos = component.Transform.getFor(sprinkleDirEntity).position
         local dir = dirEntityPos - cannonTrans.position
 

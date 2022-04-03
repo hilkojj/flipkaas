@@ -34,7 +34,7 @@ function create(e, args)
             vertexShaderPath = "shaders/default.vert",
             fragmentShaderPath = "shaders/default.frag",
             defines = {BITE = "1"},
-			uniformsFloat = { biteZ = 75 },
+			uniformsFloat = { biteZ = 75, cartoonyFresnel = 1. },
         },
 		ShadowCaster(),
 		ShadowReceiver()
@@ -42,7 +42,7 @@ function create(e, args)
 	--component.Transform.getFor(e).scale = vec3(donutRadius)
 
 	
-	setUpdateFunction(e, .05, function()
+	setUpdateFunction(e, .1, function()
 	
 		local uniforms = component.CustomShader.getFor(e):dirty().uniformsFloat
 		uniforms["biteZ"] = _G.biteZ

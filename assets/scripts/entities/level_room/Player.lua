@@ -96,7 +96,7 @@ function create(player)
                 bossOffset = vec3(0, 160, 0)
             }
         })
-        --setMainCamera(cam)
+        setMainCamera(cam)
     end
 
     local sun = getByName("sun")
@@ -263,7 +263,8 @@ function create(player)
     }
     local stageCamDists = {
         vec2(20, 11),
-        vec2(42, 27)
+        vec2(42, 27),
+        vec2(30, 16)
     }
 
     _G.goFly = function(to)
@@ -279,6 +280,8 @@ function create(player)
 
         if valid(cam) then
             component.ThirdPersonFollowing.animate(cam, "bossInfluence", 0, transitionDuration, "pow2")
+            component.ThirdPersonFollowing.animate(cam, "backwardsDistance", 22, transitionDuration, "pow2")
+            component.ThirdPersonFollowing.animate(cam, "upwardsDistance", 13, transitionDuration, "pow2")
         end
 
         

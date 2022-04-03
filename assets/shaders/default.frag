@@ -44,6 +44,7 @@ layout (location = 1) out vec4 brightColor;
 
 #ifdef BITE
 uniform float biteZ;
+uniform float cartoonyFresnel;
 #endif
 
 uniform float time;
@@ -355,7 +356,15 @@ void main()
     vec3 diffuseColor = irradiance * albedo;
 
     // TODO: ldjam hack
-    diffuseColor += vec3(pow(1.f - dot(N, V), 5.f)) * (albedo + vec3(1.f));
+    diffuseColor += vec3(pow(1.f - dot(N, V), 5.f)) * (albedo + vec3(
+    
+        #ifdef BITE
+        cartoonyFresnel
+        #else
+        1.f
+        #endif
+        
+    ));
 
     const float MAX_REFLECTION_LOD = 4.;
     vec3 prefilteredColor = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
