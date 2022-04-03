@@ -626,8 +626,11 @@ void PhysicsSystem::update(double deltaTime, EntityEngine* room)
             auto rotDiff = transform.rotation * inverse(body.prevRotation);
             bool rotDirty = transform.rotation != body.prevRotation;
 
-            transform.position = btToVec3(btTrans.getOrigin()) + posDiff;
-            transform.rotation = rotDiff * btToQuat(btTrans.getRotation());
+            if (body.mass > 0)
+            {
+                transform.position = btToVec3(btTrans.getOrigin()) + posDiff;
+                transform.rotation = rotDiff * btToQuat(btTrans.getRotation());
+            }
 
             if (posDiff != mu::ZERO_3)
             {

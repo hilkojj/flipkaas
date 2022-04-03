@@ -15,23 +15,77 @@ function create(hud, args)
             fillRemainingParentHeight = true,
             fillRemainingParentWidth = true,
 
-            zIndexOffset = -10
+            zIndexOffset = -10,
+            centerAlign = true
         }
     })
     local energyMeter = createChild(hud, "energy meter")
     setComponents(energyMeter, {
         UIElement {
+            --[[
             absolutePositioning = true,
             absoluteHorizontalAlign = 1,
             absoluteVerticalAlign = 0,
             renderOffset = ivec2(0, 0)
+            ]]--
         },
         AsepriteView {
-            sprite = "sprites/ui/energy_meter"
+            sprite = "sprites/ui/energy_meter",
+            loop = false
         }
         
     })
+
     local stage = 0
+
+    function canFly()
+
+        local flyInstructions = createChild(hud, "fly instruction")
+        applyTemplate(flyInstructions, "Text", {
+            text = "Enter fly mode: ["..gameSettings.keyInput.fly:getName().."] or ",
+            waving = true,
+            wavingFrequency = 10,
+            wavingSpeed = 10,
+            wavingAmplitude = 2,
+            lineSpacing = 10
+        })
+        local flycontrollerButtonIcon = createChild(hud, "controller fly button")
+        setComponents(flycontrollerButtonIcon, {
+            UIElement {
+                --[[
+                absolutePositioning = true,
+                absoluteHorizontalAlign = 1,
+                absoluteVerticalAlign = 0,
+                ]]--
+                renderOffset = ivec2(69, 15)
+
+            },
+            AsepriteView {
+                sprite = "sprites/ui/xbox_buttons"
+            }
+        
+        })
+        playAsepriteTag(component.AsepriteView.getFor(flycontrollerButtonIcon), gameSettings.gamepadInput.fly:getName(), true)
+
+        function pressed()
+            setTimeout(hud, 0, function()
+                destroyEntity(flyInstructions)
+                destroyEntity(flycontrollerButtonIcon)
+            end)
+
+            _G.goFly(stage)
+            setStage(stage)
+        end
+
+        
+        listenToGamepadButton(flyInstructions, 0, gameSettings.gamepadInput.fly, "flyController")
+        listenToKey(flyInstructions, gameSettings.keyInput.fly, "flyKey")
+        onEntityEvent(flyInstructions, "flyController_pressed", pressed)
+        onEntityEvent(flyInstructions, "flyKey_pressed", pressed)
+
+    end
+
+
     local stageEnergies = {
         4,
         8
@@ -43,6 +97,9 @@ function create(hud, args)
         energy = 0
         energyNeeded = stageEnergies[stage + 1]
         playAsepriteTag(component.AsepriteView.getFor(energyMeter), "Reset", true)
+    end
+    _G.getStage = function()
+        return stage
     end
     
     setStage(0)
@@ -63,8 +120,8 @@ function create(hud, args)
         if energy == energyNeeded then
 
             stage = stage + 1
-            _G.goFly(stage)
-            setStage(stage)
+            
+            setTimeout(hud, .1, canFly)
         end
     end
 

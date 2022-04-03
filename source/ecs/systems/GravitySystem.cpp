@@ -12,10 +12,13 @@ void GravitySystem::init(EntityEngine *engine)
 void GravitySystem::update(double deltaTime, EntityEngine *)
 {
     assert(room);
+    room->entities.view<GravityFieldAffected>().each([&](GravityFieldAffected &affected) {
+        affected.fields.clear();
+    });
 
     room->entities.view<Transform, GhostBody, GravityField, SphereGravityFunction>().each([&](auto e, const Transform &t, const GhostBody &ghost, GravityField &field, auto) {
 
-        forEachVictim(field, ghost, [&](auto victim, const Transform &victimTrans) {
+        forEachVictim(e, field, ghost, [&](auto victim, const Transform &victimTrans) {
 
             auto diff = t.position - victimTrans.position;
             auto len = length(diff);
@@ -39,7 +42,7 @@ void GravitySystem::update(double deltaTime, EntityEngine *)
 
         float localGravityRadius = donut.gravityRadius / donut.donutRadius;
 
-        forEachVictim(field, ghost, [&](auto victim, const Transform &victimTrans) {
+        forEachVictim(e, field, ghost, [&](auto victim, const Transform &victimTrans) {
 
             vec3 victimPosDonutSpace = worldToDonut * vec4(victimTrans.position, 1);
             vec3 victimPosDonutSpaceProjected = victimPosDonutSpace;
@@ -79,7 +82,7 @@ void GravitySystem::update(double deltaTime, EntityEngine *)
 
         float localGravityRadius = disc.gravityRadius / disc.radius;
 
-        forEachVictim(field, ghost, [&](auto victim, const Transform &victimTrans) {
+        forEachVictim(e, field, ghost, [&](auto victim, const Transform &victimTrans) {
 
             vec3 victimPosDiscSpace = worldToDisc * vec4(victimTrans.position, 1);
             vec3 victimPosDiscSpaceProjected = victimPosDiscSpace;
@@ -114,7 +117,7 @@ void GravitySystem::update(double deltaTime, EntityEngine *)
         vec3 bottom = t.position - (dirBottomTop * (cyl.height * .5f));
         vec3 top = t.position + (dirBottomTop * (cyl.height * .5f));
 
-        forEachVictim(field, ghost, [&](auto victim, const Transform &victimTrans) {
+        forEachVictim(e, field, ghost, [&](auto victim, const Transform &victimTrans) {
 
             // https://math.stackexchange.com/questions/1905533/find-perpendicular-distance-from-point-to-line-in-3d
 
@@ -141,7 +144,7 @@ void GravitySystem::update(double deltaTime, EntityEngine *)
         ctpToWorld *= glm::toMat4(t.rotation);
         auto worldToCtp = inverse(ctpToWorld);
 
-        forEachVictim(field, ghost, [&](auto victim, const Transform &victimTrans) {
+        forEachVictim(e, field, ghost, [&](auto victim, const Transform &victimTrans) {
 
             vec3 victimPosCtpSpace = worldToCtp * vec4(victimTrans.position, 1);
 
@@ -172,7 +175,7 @@ void GravitySystem::update(double deltaTime, EntityEngine *)
     room->entities.view<Transform, GhostBody, GravityField, PlaneGravityFunction>().each([&](auto e, const Transform &t, const GhostBody &ghost, GravityField &field, auto) {
 
         vec3 dir = rotate(t.rotation, -mu::Y);
-        forEachVictim(field, ghost, [&](auto victim, const Transform &victimTrans) {
+        forEachVictim(e, field, ghost, [&](auto victim, const Transform &victimTrans) {
             return dir;
         });
     });
@@ -208,7 +211,7 @@ void GravitySystem::update(double deltaTime, EntityEngine *)
 
 }
 
-void GravitySystem::forEachVictim(const GravityField &field, const GhostBody &ghost, std::function<vec3(entt::entity, const Transform &)> func)
+void GravitySystem::forEachVictim(entt::entity fieldE, const GravityField &field, const GhostBody &ghost, std::function<vec3(entt::entity, const Transform &)> func)
 {
     for (auto &[victim, collision] : ghost.collider.collisions)
     {
@@ -227,8 +230,8 @@ void GravitySystem::forEachVictim(const GravityField &field, const GhostBody &gh
             std::cerr << "Gravity field returned direction with NaN(s)! Victim: #" << int(victim) << std::endl;
             continue;
         }
-            
-
+        if (length2(dir) > 0)
+            affected->fields.push_back(fieldE);
         affected->dirPerPriority[field.priority] += dir * field.strength;
     }
 }

@@ -24,6 +24,10 @@ out mat3 v_TBN;
 out float v_fog;
 #endif
 
+#ifdef SHINY
+uniform float time;
+#endif
+
 void main()
 {
     #ifdef INSTANCED
@@ -32,9 +36,17 @@ void main()
 
     #endif
 
-    gl_Position = mvp * vec4(a_position, 1.0);
+    vec3 position = a_position;
 
-    v_position = vec3(transform * vec4(a_position, 1.0));
+    #ifdef SHINY
+
+    position.y += sin(time * 2.f) * .2f;
+
+    #endif
+
+    gl_Position = mvp * vec4(position, 1.0);
+
+    v_position = vec3(transform * vec4(position, 1.0));
     v_textureCoord = a_textureCoord;
 
     mat3 dirTrans = mat3(transform);
@@ -45,6 +57,6 @@ void main()
 
     v_TBN = mat3(tangent, bitan, normal);
     #if FOG
-    v_fog = 1. - max(0., min(1., (length(v_position - camPosition) - FOG_START) / (FOG_END - FOG_START)));
+    v_fog = 1. - max(0., min(1., (length(position - camPosition) - FOG_START) / (FOG_END - FOG_START)));
     #endif
 }

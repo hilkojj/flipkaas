@@ -10,6 +10,8 @@ function create(player)
 
     local defaultCollideMask = masks.STATIC_TERRAIN | masks.SENSOR
     local defaultMass = 1
+    local defaultJumpForce = 1200
+    local defaultWalkSpeed = 13
     local radius = 1
 
     setComponents(player, {
@@ -61,8 +63,8 @@ function create(player)
         },
         CharacterMovement {
             inputInCameraSpace = true,
-            walkSpeed = 13,
-            jumpForce = 1200,
+            walkSpeed = defaultWalkSpeed,
+            jumpForce = defaultJumpForce,
             fallingForce = 2000
         }
         --Inspecting()
@@ -89,19 +91,19 @@ function create(player)
     })
 
     local cam = getByName("3rd_person_camera")
+    local defaultBossInfluence = .66
     if valid(cam) then
         setComponents(cam, {
             ThirdPersonFollowing {
                 target = player,
                 visibilityRayMask = masks.STATIC_TERRAIN,
-                backwardsDistance = 20,
-                upwardsDistance = 11,
+                backwardsDistance = 34,
+                upwardsDistance = 20,
                 boss = getByName("Hapman"),
                 bossInfluence = 0,
                 bossOffset = vec3(0, 160, 0)
             }
         })
-        component.ThirdPersonFollowing.animate(cam, "bossInfluence", .8, 1, "pow2Out")
         setMainCamera(cam)
     end
 
@@ -163,6 +165,10 @@ function create(player)
     end)
 
     onEntityEvent(player, "Jump", function (col)
+
+        if component.CharacterMovement.getFor(player).jumpForce == 0 then
+            return
+        end
         
         component.Rigged.getFor(player).playingAnimations:add(PlayAnimation {
             name = "Jump",
@@ -170,11 +176,20 @@ function create(player)
         })
 	end)
 
+    local enteringStage = false
+
     onEntityEvent(player, "Collision", function (col)
         
-        if col.otherCategoryBits & masks.STATIC_TERRAIN ~= 0 and col.impact > 20 then
+        if col.otherCategoryBits & masks.STATIC_TERRAIN ~= 0 and (col.impact > 20 or enteringStage) then
             -- hit floor
-            component.Rigged.getFor(player).playingAnimations:add(PlayAnimation {
+            enteringStage = false
+            local rigged = component.Rigged.getFor(player)
+            rigged.playingAnimations:clear()
+            rigged.playingAnimations:add(PlayAnimation {
+                name = "Idle",
+                loop = true,
+            })
+            rigged.playingAnimations:add(PlayAnimation {
                 name = "Land",
                 --influence = col.impact / 24,
                 loop = false,
@@ -196,16 +211,20 @@ function create(player)
     end)
 
     local flyStarts = {
-        vec3(0, 30, -50)
+        vec3(0, 27, -50)
+    }
+    local stageCamDists = {
+        vec2(20, 11),
+        vec2(30, 21)
     }
 
-    _G.goFly = function(i)
+    _G.goFly = function(to)
 
-        print("fly "..i)
+        print("fly to stage "..to)
 
         local transitionDuration = 2
 
-        component.Transform.animate(player, "position", flyStarts[i], transitionDuration, "pow2")
+        component.Transform.animate(player, "position", flyStarts[to], transitionDuration, "pow2")
         local body = component.RigidBody.getFor(player):dirty()
         body.collider:dirty().collideWithMaskBits = 0
         body.mass = 0
@@ -214,16 +233,52 @@ function create(player)
             component.ThirdPersonFollowing.animate(cam, "bossInfluence", 0, transitionDuration, "pow2")
         end
 
-        component.SphereColliderShape.remove(player)
+        
+        component.Rigged.getFor(player).playingAnimations:clear()
+        component.Rigged.getFor(player).playingAnimations:add(PlayAnimation {
+            name = "Flying",
+            loop = true,
+            timeMultiplier = 1.5
+        })
 
-        setTimeout(player, 4, function()
+        component.SphereColliderShape.remove(player)
+        component.CharacterMovement.getFor(player).jumpForce = 0
+        component.CharacterMovement.getFor(player).walkSpeed = 22
+
+        setTimeout(player, transitionDuration, function()
         
             local body = component.RigidBody.getFor(player):dirty()
-            body.collider:dirty().collideWithMaskBits = defaultCollideMask
+            body.collider:dirty().collideWithMaskBits = masks.FLY_WALLS | masks.SENSOR
             body.mass = defaultMass
             component.SphereColliderShape.getFor(player):dirty().radius = radius
         
+            
+
         end)
     end
+
+    _G.arrivedAtStage = function()
+        if valid(cam) then
+            component.ThirdPersonFollowing.animate(cam, "bossInfluence", defaultBossInfluence, 5, "pow2")
+            component.ThirdPersonFollowing.animate(cam, "backwardsDistance", stageCamDists[_G.getStage() + 1].x, 5, "pow2")
+            component.ThirdPersonFollowing.animate(cam, "upwardsDistance", stageCamDists[_G.getStage() + 1].y, 5, "pow2")
+        end
+
+        component.CharacterMovement.getFor(player).jumpForce = defaultJumpForce
+        component.CharacterMovement.getFor(player).walkSpeed = defaultWalkSpeed
+
+        component.Rigged.getFor(player).playingAnimations:clear()
+        component.Rigged.getFor(player).playingAnimations:add(PlayAnimation {
+            name = "EnteringStage",
+            loop = true,
+            timeMultiplier = 2
+        })
+        enteringStage = true
+
+        local body = component.RigidBody.getFor(player):dirty()
+        body.collider:dirty().collideWithMaskBits = defaultCollideMask
+    end
+
+    setTimeout(player, .1, _G.arrivedAtStage) -- banana
 end
 

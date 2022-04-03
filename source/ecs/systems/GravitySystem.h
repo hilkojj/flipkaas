@@ -21,7 +21,7 @@ protected:
 
     void update(double deltaTime, EntityEngine *) override;
 
-    void forEachVictim(const GravityField &, const GhostBody &, std::function<vec3(entt::entity, const Transform &)>);
+    void forEachVictim(entt::entity fieldE, const GravityField &, const GhostBody &, std::function<vec3(entt::entity, const Transform &)>);
 
 };
 

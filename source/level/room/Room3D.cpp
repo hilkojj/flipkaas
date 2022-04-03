@@ -85,6 +85,9 @@ void Room3D::initializeLuaEnvironment()
             return sol::optional<ivec2>();
         return sol::optional(ivec2(pixelPos));
     };
+    luaEnvironment["getTime"] = [&] {
+        return getLevel().getTime();
+    };
 }
 
 void decomposeMtx(const mat4 &m, vec3 &pos, quat &rot, vec3 &scale)

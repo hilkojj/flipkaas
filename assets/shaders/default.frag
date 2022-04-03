@@ -3,7 +3,6 @@ precision mediump sampler2DShadow;
 
 #define PI 3.14159265359
 
-
 struct PointLight
 {
     vec3 position;

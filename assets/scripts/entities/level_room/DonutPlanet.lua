@@ -74,5 +74,37 @@ function create(e, args)
 			gravityRadius = gravityRadius
 		}
 	})
+	local playerEntered = false
+	onEntityEvent(grav, "Collision", function (col)
+
+		if col.otherEntity == _G.player and not playerEntered and getTime() > .1 then
+
+			setUpdateFunction(grav, 0, function()
+		
+				local affected = component.GravityFieldAffected.getFor(_G.player)
+
+				if affected.fields[1] == grav then
+
+					print("arrived at donut")
+	
+					playerEntered = true
+					_G.arrivedAtStage()
+					setUpdateFunction(grav, 0, nil)
+				end
+		
+			end)
+		end		
+
+
+	end)
+	onEntityEvent(grav, "CollisionEnded", function (col)
+
+		if col.otherEntity == _G.player then
+
+			setUpdateFunction(grav, 0, nil)
+		end		
+
+
+	end)
 
 end

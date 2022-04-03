@@ -32,5 +32,6 @@ PlaneGravityFunction:
 GravityFieldAffected:
   gravityScale: [float, 10]
   defaultGravity: [vec3, vec3(0)]
+  fields: std::vector<entt::entity>
   _cpp_only:
     dirPerPriority: std::vector<vec3>
