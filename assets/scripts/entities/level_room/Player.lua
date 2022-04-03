@@ -96,7 +96,7 @@ function create(player)
                 bossOffset = vec3(0, 160, 0)
             }
         })
-        --setMainCamera(cam)
+        setMainCamera(cam)
     end
 
     local sun = getByName("sun")
@@ -345,5 +345,9 @@ function create(player)
     end
 
     setTimeout(player, .1, _G.arrivedAtStage) -- banana
+
+    
+
+    --setTimeout(player, 7, _G.bite)
 end
 

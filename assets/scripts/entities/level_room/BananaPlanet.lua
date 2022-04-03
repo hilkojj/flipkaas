@@ -99,7 +99,6 @@ function create(e, args)
 	end
 
 
-	--[[
 	setComponents(createChild(e, "bigGrav"), {
 		
 		Transform(),
@@ -123,6 +122,5 @@ function create(e, args)
 		SphereGravityFunction {
 		}
 	})
-	]]--
 
 end

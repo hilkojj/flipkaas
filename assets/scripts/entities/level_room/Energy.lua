@@ -55,6 +55,14 @@ function create(e)
     component.InstancedRendering.getFor(instancer):dirty().transformEntities:add(e)
 
     local hit = false
+    local hidden = false
+
+    function hide(e)
+        hidden = true
+
+        component.InstancedRendering.getFor(instancer):dirty().transformEntities:erase(e)
+        component.GhostBody.remove(e) -- dont destroy, because that will be saved in the level
+    end
 
     onEntityEvent(e, "Collision", function (col)
 		if col.otherEntity == _G.player and not hit and #col.contactPoints > 0 then
@@ -84,11 +92,10 @@ function create(e)
             
                     component.Transform.animate(e, "scale", vec3(0), .1, "pow2Out", function()
 
-                        component.InstancedRendering.getFor(instancer):dirty().transformEntities:erase(e)
-                        component.GhostBody.remove(e) -- dont destroy, because that will be saved in the level
                         component.Transform.getFor(e).position = originalPos
                         component.Transform.getFor(e).scale = vec3(1)
-
+                        
+                        hide(e)
                     end)
 
                 end)
@@ -96,6 +103,18 @@ function create(e)
 
         end
 	end)
+
+    setTimeout(e, .1, function()
+        _G.onBiteZChanged[#_G.onBiteZChanged + 1] = function()
+
+            if not hidden and not hit and _G.biteZ < component.Transform.getFor(e).position.z then
+                hide(e)
+            end
+
+        end
+    
+    end)
+    
 
 end
 

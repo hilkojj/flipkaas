@@ -58,8 +58,17 @@ function create(e)
             }
         } 
     })
+    
+    function hide(e)
 
-    setUpdateFunction(e, .5, function()
+        setUpdateFunction(e, 0, nil)
+        
+        component.InstancedRendering.getFor(instancer):dirty().transformEntities:erase(e)
+        component.RigidBody.remove(e) -- dont destroy, because that will be saved in the level
+
+    end
+
+    setUpdateFunction(e, .8, function()
     
         local cannonTrans = component.Transform.getFor(e)
         local dirEntityPos = component.Transform.getFor(sprinkleDirEntity).position
@@ -73,10 +82,20 @@ function create(e)
         trans.position = cannonTrans.position + dir * vec3(2)
         trans.rotation = cannonTrans.rotation
         local duration = 3
-        component.Transform.animate(sprinkle, "position", cannonTrans.position + dir * vec3(120), duration, "linear")
+        component.Transform.animate(sprinkle, "position", cannonTrans.position + dir * vec3(70), duration, "linear")
         component.DespawnAfter.getFor(sprinkle).time = duration
         
 
+    end)
+
+    setTimeout(e, .1, function()
+        _G.onBiteZChanged[#_G.onBiteZChanged + 1] = function()
+
+            if _G.biteZ < component.Transform.getFor(e).position.z then
+                hide(e)
+            end
+
+        end
     end)
 
 end

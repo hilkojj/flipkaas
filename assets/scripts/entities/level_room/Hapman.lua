@@ -44,6 +44,9 @@ function create(hapman)
     local biteI = 0
     local atePlayer = false;
     _G.biteZ = startZ
+
+    _G.onBiteZChanged = {}
+
     _G.bite = function (travel)
 
         biteI = biteI + 1
@@ -63,6 +66,11 @@ function create(hapman)
         setTimeout(hapman, biteTimeout, function ()
         
             _G.biteZ = goalPos.z - 1.75 * trans.scale.z
+
+            for _, cb in pairs(_G.onBiteZChanged) do
+                
+                cb()
+            end
 
             if not atePlayer then
 
