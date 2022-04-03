@@ -397,9 +397,15 @@ void main()
     #ifdef SHINY
 
     if (albedo.b < .6)
-        brightColor.rgb += vec3(colorOut.rgb) * (sin((v_position.x + v_position.y) * 3.f + time * 2.5f) + 1.f);
+        brightColor.rgb += vec3(colorOut.rgb) * (sin((v_position.x + v_position.y) * 3.f + time * 4.5f) + 2.f);
     else
         brightColor.rgb += vec3(colorOut.rgb) * (sin(time * 2.5f) + 1.f) * .4f;
+    #endif
+
+    #ifdef DAMAGE
+
+    brightColor.r += clamp(sin(time * 30.f) * 100.f, 0.f, 3.f);
+
     #endif
 
     #endif

@@ -95,6 +95,12 @@ void CustomShaderSystem::onComponentAdded(entt::registry &reg, entt::entity e)
 void CustomShaderSystem::onComponentRemoved(entt::registry &reg, entt::entity e)
 {
     auto &custom = reg.get<CustomShader>(e);
+
+    collections[room][custom.shader].erase(e);
+
+    if (collections[room][custom.shader].empty())
+        collections[room].erase(custom.shader);
+
     custom.shader = NULL; // decrease use count
     checkUseCount(custom.currentHash);
 }

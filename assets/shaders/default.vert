@@ -57,6 +57,6 @@ void main()
 
     v_TBN = mat3(tangent, bitan, normal);
     #if FOG
-    v_fog = 1. - max(0., min(1., (length(position - camPosition) - FOG_START) / (FOG_END - FOG_START)));
+    v_fog = 1. - max(0., min(1., (length(v_position - camPosition) - FOG_START) / (FOG_END - FOG_START)));
     #endif
 }

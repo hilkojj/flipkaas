@@ -22,14 +22,6 @@ function create(player)
             modelName = "Flyman",
             visibilityMask = masks.PLAYER
         },
-        --[[
-        CustomShader {
-            vertexShaderPath = "shaders/default.vert",
-            fragmentShaderPath = "shaders/default.frag",
-            defines = {TEST = "1"}
-        },
-        ]]--
-
         Rigged {
             playingAnimations = {
                 PlayAnimation {
@@ -104,7 +96,7 @@ function create(player)
                 bossOffset = vec3(0, 160, 0)
             }
         })
-        setMainCamera(cam)
+        --setMainCamera(cam)
     end
 
     local sun = getByName("sun")
@@ -176,6 +168,79 @@ function create(player)
         })
 	end)
 
+    _G.playerHealth = 4
+    local prevHitTime = getTime()
+
+    _G.playerHit = function(damage)
+        
+        local timeElapsed = getTime() - prevHitTime
+
+        if timeElapsed < 1.5 then
+            return
+        end
+
+        playerHealth = math.max(0, playerHealth - damage)
+
+        setComponents(player, {
+
+            CustomShader {
+                vertexShaderPath = "shaders/rigged.vert",
+                fragmentShaderPath = "shaders/default.frag",
+                defines = {DAMAGE = "1"}
+            }
+        })
+
+        setTimeout(player, 1., function()
+        
+            component.CustomShader.remove(player)
+        
+        end)
+
+        if playerHealth == 0 then
+
+            print("game over!")
+            component.Transform.remove(player)
+            component.RigidBody.remove(player)
+            atePlayer = true
+
+            setTimeout(player, 2, function()
+                local gameOverCam = createChild(player, "game over cam")
+
+                applyTemplate(gameOverCam, "Camera", {
+                    setAsMain = true,
+                    name = "game over cam"
+                })
+
+                local camRot = quat:new()
+                camRot.x = 142
+                camRot.y = -25
+                camRot.z = 180
+                local goalCamRot = quat:new()
+                goalCamRot.x = 156
+                goalCamRot.y = 37
+                goalCamRot.z = 180
+
+
+                setComponents(gameOverCam, {
+                    Transform {
+                        position = vec3(-30, 40, _G.biteZ - 100),
+                        rotation = camRot
+                    }
+                })
+                component.Transform.animate(gameOverCam, "position", vec3(60, 80, _G.biteZ - 200), 20, "pow2")
+                component.Transform.animate(gameOverCam, "rotation", goalCamRot, 20, "pow2")
+                component.CameraPerspective.animate(gameOverCam, "fieldOfView", 40, 20, "pow2")
+
+                _G.bite(12)
+                            
+                _G.showGameOverPopup(0)
+
+            end)
+
+        end
+
+    end
+
     local enteringStage = false
 
     onEntityEvent(player, "Collision", function (col)
@@ -215,7 +280,7 @@ function create(player)
     }
     local stageCamDists = {
         vec2(20, 11),
-        vec2(30, 21)
+        vec2(50, 37)
     }
 
     _G.goFly = function(to)

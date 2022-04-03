@@ -44,7 +44,7 @@ function create(hapman)
     local biteI = 0
     local atePlayer = false;
     _G.biteZ = startZ
-    function bite(travel)
+    _G.bite = function (travel)
 
         biteI = biteI + 1
 
@@ -85,44 +85,7 @@ function create(hapman)
 
                 onEntityEvent(biteSensor, "Collision", function (col)
                     if col.otherEntity == _G.player then
-                        print("game over!")
-                        component.Transform.remove(_G.player)
-                        component.RigidBody.remove(_G.player)
-                        atePlayer = true
-
-                        setTimeout(biteSensor, 2, function()
-                            local gameOverCam = createChild(hapman, "game over cam")
-
-                            applyTemplate(gameOverCam, "Camera", {
-                                setAsMain = true,
-                                name = "game over cam"
-                            })
-
-                            local camRot = quat:new()
-                            camRot.x = 142
-                            camRot.y = -25
-                            camRot.z = 180
-                            local goalCamRot = quat:new()
-                            goalCamRot.x = 142
-                            goalCamRot.y = 50
-                            goalCamRot.z = 180
-
-
-                            setComponents(gameOverCam, {
-                                Transform {
-                                    position = vec3(-30, 40, _G.biteZ - 50),
-                                    rotation = camRot
-                                }
-                            })
-                            component.Transform.animate(gameOverCam, "position", vec3(60, 80, _G.biteZ - 90), 20, "pow2")
-                            component.Transform.animate(gameOverCam, "rotation", goalCamRot, 20, "pow2")
-                            component.CameraPerspective.animate(gameOverCam, "fieldOfView", 40, 20, "pow2")
-
-                            bite(18)
-                            
-                            _G.showGameOverPopup(0)
-
-                        end)
+                        _G.playerHit(100)
                     end
 	            end)
 
