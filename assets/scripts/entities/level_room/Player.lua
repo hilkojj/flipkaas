@@ -8,6 +8,10 @@ function create(player)
 
     _G.player = player
 
+    local defaultCollideMask = masks.STATIC_TERRAIN | masks.SENSOR
+    local defaultMass = 1
+    local radius = 1
+
     setComponents(player, {
         Transform {
             position = vec3(0, 10, 0)
@@ -36,19 +40,20 @@ function create(player)
         ShadowCaster(),
         RigidBody {
             gravity = vec3(0),
-            mass = 1,
+            mass = defaultMass,
             linearDamping = .1,
             angularAxisFactor = vec3(0),
+            allowSleep = false,
             collider = Collider {
                 bounciness = 0,
                 frictionCoefficent = .1,
                 collisionCategoryBits = masks.DYNAMIC_CHARACTER,
-                collideWithMaskBits = masks.STATIC_TERRAIN | masks.SENSOR,
+                collideWithMaskBits = defaultCollideMask,
                 registerCollisions = true
             }
         },
         SphereColliderShape {
-            radius = 1
+            radius = radius
         },
         GravityFieldAffected {
             gravityScale = 30,
@@ -122,6 +127,20 @@ function create(player)
         })
     end
 
+    local energyLamp = createChild(player, "energy lamp")
+    setComponents(energyLamp, {
+        Transform(),
+        TransformChild {
+            parentEntity = player,
+            offset = Transform {
+                position = vec3(0, 4, -3)
+            }
+        },
+        PointLight {
+            color = vec3(0)
+        }
+    })
+
     --[[
     onEntityEvent(player, "AnimationFinished", function(anim, unsub)
         print(anim.name.." has finished playing! Play it one more time but with less influence..")
@@ -166,10 +185,45 @@ function create(player)
 	end)
 
     setUpdateFunction(player, 0, function()
+
+        if not component.Transform.has(player) then
+            return
+        end
     
         local trans = component.Transform.getFor(player)
         trans.position.z = math.min(_G.biteZ - 1, trans.position.z)
         
     end)
+
+    local flyStarts = {
+        vec3(0, 30, -50)
+    }
+
+    _G.goFly = function(i)
+
+        print("fly "..i)
+
+        local transitionDuration = 2
+
+        component.Transform.animate(player, "position", flyStarts[i], transitionDuration, "pow2")
+        local body = component.RigidBody.getFor(player):dirty()
+        body.collider:dirty().collideWithMaskBits = 0
+        body.mass = 0
+
+        if valid(cam) then
+            component.ThirdPersonFollowing.animate(cam, "bossInfluence", 0, transitionDuration, "pow2")
+        end
+
+        component.SphereColliderShape.remove(player)
+
+        setTimeout(player, 4, function()
+        
+            local body = component.RigidBody.getFor(player):dirty()
+            body.collider:dirty().collideWithMaskBits = defaultCollideMask
+            body.mass = defaultMass
+            component.SphereColliderShape.getFor(player):dirty().radius = radius
+        
+        end)
+    end
 end
 

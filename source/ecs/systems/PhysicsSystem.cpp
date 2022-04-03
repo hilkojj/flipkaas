@@ -117,9 +117,6 @@ void syncRigidBody(RigidBody &body, BulletStuff *bullet)
     if (!body.anyDirty())
         return;
 
-    // something is dirty
-    body.bt->activate();
-
     if (body.dirty<&RigidBody::gravity>())
         body.bt->setGravity(vec3ToBt(body.gravity));
 
@@ -151,6 +148,8 @@ void syncRigidBody(RigidBody &body, BulletStuff *bullet)
     if (body.dirty<&RigidBody::linearAxisFactor>())
         body.bt->setLinearFactor(vec3ToBt(body.linearAxisFactor));
 
+    // something is dirty
+    body.bt->activate();
     body.undirtAll();
 }
 

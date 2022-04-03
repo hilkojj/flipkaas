@@ -80,8 +80,13 @@ void EntityInspector3D::moveEntityGUI(const Camera *cam, DebugLineRenderer &rend
         movingEntity = entt::null;
         return;
     }
+    if (KeyInput::justPressed(GLFW_KEY_ENTER))
+    {
+        moveEntity = false;
+        return;
+    }
     moveEntity = true;
-    movingEntity = entt::null;
+    //movingEntity = entt::null;
 
     auto toInspect = pickEntityInRoom(cam, renderer, true);
 

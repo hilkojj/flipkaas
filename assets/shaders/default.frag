@@ -395,6 +395,14 @@ void main()
 
     brightColor.a = colorOut.a;
 
+    #ifdef SHINY
+
+    if (albedo.b < .6)
+        brightColor.rgb += vec3(colorOut.rgb) * (sin((v_position.x + v_position.y) * 3.f + time * 2.5f) + 1.f);
+    else
+        brightColor.rgb += vec3(colorOut.rgb) * (sin(time * 2.5f) + 1.f) * .4f;
+    #endif
+
     #endif
 }
 
