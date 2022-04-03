@@ -68,14 +68,15 @@ function create(e, args)
 			}
 		},
 		BoxColliderShape {
-			halfExtents = vec3(args.radius + args.gravityRadius, args.gravityRadius, args.radius + args.gravityRadius)
+			halfExtents = vec3(args.radius + args.gravityRadius, args.radius + args.gravityRadius, args.radius + args.gravityRadius)
 		},
 		GravityField {
 			priority = 0
 		},
 		DiscGravityFunction {
 			radius = args.radius,
-			gravityRadius = args.gravityRadius
+			gravityRadius = args.gravityRadius,
+			spherish = .18
 		}
 	})
 
@@ -111,5 +112,7 @@ function create(e, args)
 
 
 	end)
+
+
 
 end

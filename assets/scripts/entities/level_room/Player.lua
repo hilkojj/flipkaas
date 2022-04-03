@@ -270,6 +270,11 @@ function create(player)
     _G.goFly = function(to)
 
         print("fly to stage "..to)
+        
+        if _G.playerHealth <= 0 then
+            print("nope youre dead")
+            return
+        end
 
         local transitionDuration = 2
 
@@ -312,6 +317,7 @@ function create(player)
     
     local stage0Bites = 0
     local stage1Bites = 0
+    local stage2Bites = 0
 
     local checkIfNeedToBite = nil
     checkIfNeedToBite = function()
@@ -350,7 +356,7 @@ function create(player)
         
             if stage1Bites == 0 then
 
-                setTimeout(player, 5, function()
+                setTimeout(player, 3, function()
                 
                     _G.bite(120 + _G.biteZ)
                     setTimeout(player, 15, function()
@@ -376,6 +382,36 @@ function create(player)
 
             end
             stage1Bites = stage1Bites + 1
+        elseif arrivedStage == 2 then
+        
+            if stage2Bites == 0 then
+
+                setTimeout(player, 5, function()
+                
+                    _G.bite(310 + _G.biteZ)
+                    setTimeout(player, 12, function()
+                        if arrivedStage == 2 then
+                            checkIfNeedToBite()
+                        end
+                    end)
+                end)
+
+
+            elseif stage2Bites == 1 then
+
+                _G.bite(20)
+                setTimeout(player, 9, function()
+                    if arrivedStage == 2 then
+                        checkIfNeedToBite()
+                    end
+                end)
+
+            elseif stage2Bites == 2 then
+
+                _G.bite(21)
+
+            end
+            stage2Bites = stage2Bites + 1
         end
         
     end

@@ -103,7 +103,13 @@ void GravitySystem::update(double deltaTime, EntityEngine *)
 
             vec3 diffWorld = discToWorld * vec4(diff, 0);
 
-            return normalize(diffWorld);
+            vec3 dir = normalize(diffWorld);
+            if (disc.spherish > 0)
+            {
+                dir = mix(dir, normalize(victimPosDiscSpace), disc.spherish);
+            }
+
+            return dir;
         });
 
     });

@@ -16,6 +16,7 @@ DonutGravityFunction:
 DiscGravityFunction:
   radius: float
   gravityRadius: float
+  spherish: float
   
 CylinderGravityFunction:
   gravityRadius: float
