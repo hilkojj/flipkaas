@@ -46,10 +46,16 @@ function create(hapman)
     _G.biteZ = startZ
 
     _G.onBiteZChanged = {}
+    _G.lastBitingStarted = 0
 
     _G.bite = function (travel)
 
+        --travel = 0
+
+        print("initiating bite with travel = "..travel)
+
         biteI = biteI + 1
+        _G.lastBitingStarted = getTime()
 
         local trans = component.Transform.getFor(hapman)
         local travelDuration = 3
@@ -126,10 +132,12 @@ function create(hapman)
 
     end
 
+    --[[
     listenToGamepadButton(hapman, 0, gameSettings.gamepadInput.test, "test")
     onEntityEvent(hapman, "test_pressed", function()
         bite(40)
     end)
+    ]]--
 
 end
 

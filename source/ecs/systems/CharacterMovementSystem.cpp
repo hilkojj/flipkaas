@@ -196,10 +196,15 @@ void CharacterMovementSystem::update(double deltaTime, EntityEngine *)
 
                 camOffsetDir /= camOffsetLen;
 
+                float maxZ = 0;
+
                 if (room->entities.valid(following.boss) && room->entities.has<Transform>(following.boss))
                 {
                     vec3 hapman = room->entities.get<Transform>(following.boss).position + following.bossOffset;
+                    maxZ = mix(10.f, hapman.z - 100.f, following.bossInfluence);
                     vec3 hapdiff = t.position - hapman;
+                    hapdiff.y *= .3;
+                    hapdiff.x *= .3;
                     if (t.position != hapman)
                     {
                         auto hapdir = normalize(hapdiff);
@@ -215,6 +220,7 @@ void CharacterMovementSystem::update(double deltaTime, EntityEngine *)
 
                 vec3 currentPos = t.position;//worldToTarget * vec4(t.position, 1);
                 vec3 newPos = targetTrans.position + camOffsetDir * following.backwardsDistance + targetUpWorldSpace * following.upwardsDistance;
+                newPos.z = min(newPos.z, maxZ);
 
                 auto currCamTargetDiff = targetTrans.position - t.position;
                 auto currCamTargetDist = length(currCamTargetDiff);

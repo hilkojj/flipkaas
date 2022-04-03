@@ -92,11 +92,11 @@ function create(player)
                 backwardsDistance = 34,
                 upwardsDistance = 20,
                 boss = getByName("Hapman"),
-                bossInfluence = 0,
+                bossInfluence = 1.,
                 bossOffset = vec3(0, 160, 0)
             }
         })
-        setMainCamera(cam)
+        --setMainCamera(cam)
     end
 
     local sun = getByName("sun")
@@ -135,27 +135,6 @@ function create(player)
         }
     })
 
-    --[[
-    onEntityEvent(player, "AnimationFinished", function(anim, unsub)
-        print(anim.name.." has finished playing! Play it one more time but with less influence..")
-        local anim = component.Rigged.getFor(player).playingAnimations[1]
-        anim.loop = false
-        anim.influence = .5
-        unsub()
-
-        component.Rigged.getFor(player).playingAnimations:add(PlayAnimation {
-            name = "headanim",
-            influence = 1.
-        })
-        component.RigidBody.getFor(player):dirty().gravity = vec3(0, -10, 0)
-    end)
-    ]]--
-
-    listenToGamepadButton(player, 0, gameSettings.gamepadInput.test, "test")
-    onEntityEvent(player, "test_pressed", function()
-        print("epic")
-    end)
-
     onEntityEvent(player, "Jump", function (col)
 
         if component.CharacterMovement.getFor(player).jumpForce == 0 then
@@ -179,7 +158,7 @@ function create(player)
             return
         end
 
-        playerHealth = math.max(0, playerHealth - damage)
+        _G.playerHealth = math.max(0, _G.playerHealth - damage)
 
         setComponents(player, {
 
@@ -196,7 +175,7 @@ function create(player)
         
         end)
 
-        if playerHealth == 0 then
+        if _G.playerHealth == 0 then
 
             print("game over!")
             component.Transform.remove(player)
@@ -223,15 +202,19 @@ function create(player)
 
                 setComponents(gameOverCam, {
                     Transform {
-                        position = vec3(-30, 40, _G.biteZ - 100),
+                        position = vec3(-30, 80, _G.biteZ - 100),
                         rotation = camRot
                     }
                 })
-                component.Transform.animate(gameOverCam, "position", vec3(60, 80, _G.biteZ - 200), 20, "pow2")
+                component.Transform.animate(gameOverCam, "position", vec3(60, 110, _G.biteZ - 200), 20, "pow2")
                 component.Transform.animate(gameOverCam, "rotation", goalCamRot, 20, "pow2")
                 component.CameraPerspective.animate(gameOverCam, "fieldOfView", 40, 20, "pow2")
 
-                _G.bite(12)
+                setTimeout(player, 4, function()
+                    if getTime() - _G.lastBitingStarted > 9 then
+                        _G.bite(12)
+                    end
+                end)
                             
                 _G.showGameOverPopup(0)
 
@@ -272,15 +255,15 @@ function create(player)
     
         local trans = component.Transform.getFor(player)
         trans.position.z = math.min(_G.biteZ - 1, trans.position.z)
-        
     end)
 
     local flyStarts = {
-        vec3(0, 27, -50)
+        vec3(0, 27, -50),
+        vec3(0, 35, -215)
     }
     local stageCamDists = {
         vec2(20, 11),
-        vec2(50, 37)
+        vec2(42, 27)
     }
 
     _G.goFly = function(to)
@@ -322,11 +305,87 @@ function create(player)
         end)
     end
 
+    local arrivedStage = 0
+    
+    local stage0Bites = 0
+    local stage1Bites = 0
+
+    local checkIfNeedToBite = nil
+    checkIfNeedToBite = function()
+
+        if _G.playerHealth <= 0 then
+            return
+        end
+
+        local stage = _G.getStage()
+
+        print("at stage "..stage.." arrived at stage "..arrivedStage.." health ".._G.playerHealth)
+
+        if arrivedStage == 0 then
+            
+            -- bite takes roughly 8 secs, but more is needed for collision checks. so 9
+
+            if stage0Bites == 0 then
+                bite(12)
+                setTimeout(player, 9, function()
+                    if arrivedStage == 0 then
+                        checkIfNeedToBite()
+                    end
+                end)
+            elseif stage0Bites == 1 then
+                bite(30)
+                setTimeout(player, 9, function()
+                    if arrivedStage == 0 then
+                        checkIfNeedToBite()
+                    end
+                end)
+            elseif stage0Bites == 2 then
+                bite(12)
+            end
+            stage0Bites = stage0Bites + 1
+        elseif arrivedStage == 1 then
+        
+            if stage1Bites == 0 then
+
+                setTimeout(player, 5, function()
+                
+                    _G.bite(120 + _G.biteZ)
+                    setTimeout(player, 15, function()
+                        if arrivedStage == 1 then
+                            checkIfNeedToBite()
+                        end
+                    end)
+                end)
+
+
+            elseif stage1Bites == 1 then
+
+                _G.bite(30)
+                setTimeout(player, 9, function()
+                    if arrivedStage == 1 then
+                        checkIfNeedToBite()
+                    end
+                end)
+
+            elseif stage1Bites == 2 then
+
+                _G.bite(21)
+
+            end
+            stage1Bites = stage1Bites + 1
+        end
+        
+    end
+
+    setTimeout(player, 7, checkIfNeedToBite)
+
     _G.arrivedAtStage = function()
+        arrivedStage = _G.getStage()
+
         if valid(cam) then
             component.ThirdPersonFollowing.animate(cam, "bossInfluence", defaultBossInfluence, 5, "pow2")
-            component.ThirdPersonFollowing.animate(cam, "backwardsDistance", stageCamDists[_G.getStage() + 1].x, 5, "pow2")
-            component.ThirdPersonFollowing.animate(cam, "upwardsDistance", stageCamDists[_G.getStage() + 1].y, 5, "pow2")
+            component.ThirdPersonFollowing.animate(cam, "backwardsDistance", stageCamDists[arrivedStage + 1].x, 5, "pow2")
+            component.ThirdPersonFollowing.animate(cam, "upwardsDistance", stageCamDists[arrivedStage + 1].y, 5, "pow2")
         end
 
         component.CharacterMovement.getFor(player).jumpForce = defaultJumpForce
@@ -342,12 +401,23 @@ function create(player)
 
         local body = component.RigidBody.getFor(player):dirty()
         body.collider:dirty().collideWithMaskBits = defaultCollideMask
+
+        if arrivedStage > 0 then
+
+            setTimeout(player, 9 - math.min(9, getTime() - _G.lastBitingStarted), checkIfNeedToBite)
+        end
     end
 
     setTimeout(player, .1, _G.arrivedAtStage) -- banana
 
-    
 
-    --setTimeout(player, 7, _G.bite)
+    listenToGamepadButton(player, 0, gameSettings.gamepadInput.test, "test")
+    onEntityEvent(player, "test_pressed", function()
+        local energyyyy = createEntity()
+        applyTemplate(energyyyy, "Energy", {}, true)
+        component.Transform.getFor(energyyyy).position = component.Transform.getFor(player).position
+        component.Transform.getFor(energyyyy).rotation = component.Transform.getFor(player).rotation
+        component.Transform.getFor(energyyyy).scale = component.Transform.getFor(player).scale
+    end)
 end
 

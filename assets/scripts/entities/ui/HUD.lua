@@ -68,6 +68,9 @@ function create(hud, args)
         playAsepriteTag(component.AsepriteView.getFor(flycontrollerButtonIcon), gameSettings.gamepadInput.fly:getName(), true)
 
         function pressed()
+            --[[
+            ]]--
+
             setTimeout(hud, 0, function()
                 destroyEntity(flyInstructions)
                 destroyEntity(flycontrollerButtonIcon)
@@ -84,6 +87,9 @@ function create(hud, args)
         onEntityEvent(flyInstructions, "flyKey_pressed", pressed)
 
     end
+
+    --stage = 1
+    --canFly()
 
 
     local stageEnergies = {

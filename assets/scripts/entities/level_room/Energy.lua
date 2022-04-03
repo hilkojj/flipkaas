@@ -33,8 +33,6 @@ function create(e)
 
     end
 
-    print("instancer Energy"..instancer)
-
 	setComponents(e, {
         --RigidBody { mass = 0,
 		GhostBody {
