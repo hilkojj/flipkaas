@@ -27,7 +27,7 @@ function create(e)
 	})
 	
 	local i = 0;
-	local interval = 30 / 240
+	local interval = 30 / 400
 
 	setUpdateFunction(e, interval, function()
 		
@@ -59,7 +59,7 @@ function create(e)
 		
 		component.InstancedRendering.getFor(e):dirty().transformEntities:add(child)
 
-		if i == 240 then
+		if i == 400 then
 
 			setUpdateFunction(e, 0, nil)
 

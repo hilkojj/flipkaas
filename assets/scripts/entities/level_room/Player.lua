@@ -7,6 +7,7 @@ function create(player)
     setName(player, "player")
 
     _G.player = player
+    _G.getTime = getTime
 
     local defaultCollideMask = masks.STATIC_TERRAIN | masks.SENSOR | masks.DYNAMIC_PROPS
     local defaultMass = 1
@@ -147,9 +148,11 @@ function create(player)
         })
 	end)
 
-    _G.playerHealth = 3
+    _G.playerHealth = 4
     local prevHitTime = getTime()
     local flying = false
+
+    local arrivedStage = 0
 
     _G.playerHit = function(damage)
         
@@ -160,6 +163,7 @@ function create(player)
         end
 
         _G.playerHealth = math.max(0, _G.playerHealth - damage)
+        _G.updateHealthBar(_G.playerHealth)
 
         setComponents(player, {
 
@@ -217,7 +221,7 @@ function create(player)
                     end
                 end)
                             
-                _G.showGameOverPopup(0)
+                _G.showGameOverPopup(arrivedStage == 4)
 
             end)
 
@@ -293,7 +297,7 @@ function create(player)
             component.RigidBody.getFor(player):dirty().gravity = vec3(0, -1, 0)
             
             setTimeout(player, 30, function()
-                _G.bite(190)
+                _G.bite(140 + 178 + 460 + _G.biteZ)
             end)
             
             if valid(cam) then
@@ -353,8 +357,6 @@ function create(player)
         end)
     end
 
-    local arrivedStage = 0
-    
     local stage0Bites = 0
     local stage1Bites = 0
     local stage2Bites = 0
@@ -397,7 +399,7 @@ function create(player)
         
             if stage1Bites == 0 then
 
-                setTimeout(player, 3, function()
+                setTimeout(player, 4, function()
                 
                     _G.bite(140 + _G.biteZ)
                     setTimeout(player, 11, function()
@@ -427,10 +429,10 @@ function create(player)
         
             if stage2Bites == 0 then
 
-                setTimeout(player, 0.7, function()
+                setTimeout(player, 2, function()
                 
                     _G.bite(320 + _G.biteZ)
-                    setTimeout(player, 10, function()
+                    setTimeout(player, 14, function()
                         if arrivedStage == 2 then
                             checkIfNeedToBite()
                         end

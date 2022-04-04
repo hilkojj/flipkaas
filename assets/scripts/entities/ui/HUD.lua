@@ -36,6 +36,58 @@ function create(hud, args)
         
     })
 
+    local hearts = {
+        createChild(hud, "heart 0"),
+        createChild(hud, "heart 1"),
+        createChild(hud, "heart 2"),
+        createChild(hud, "heart 3"),
+    }
+    for i, h in pairs(hearts) do
+
+        setComponents(h, {
+            UIElement {
+                
+                absolutePositioning = true,
+                absoluteHorizontalAlign = 1,
+                absoluteVerticalAlign = 0,
+                renderOffset = ivec2(i * 16 - 40, -52)
+            },
+            AsepriteView {
+                sprite = "sprites/ui/heart",
+                loop = false
+            }
+        
+        })
+
+    end
+
+    _G.updateHealthBar = function(left)
+        
+        for i = 4, left + 1, -1 do
+            component.AsepriteView.getFor(hearts[i]).playingTag = 0
+        end
+        
+    end
+
+    function getTimeString()
+	    local minutesStr = math.floor(getTime() / 60)..""
+        local secsStr = math.floor(math.fmod(getTime(), 60))..""
+        return (#minutesStr == 1 and "0"..minutesStr or minutesStr)..":"..(#secsStr == 1 and "0"..secsStr or secsStr)
+    end
+
+
+    local timeText = createChild(hud, "time text")
+    applyTemplate(timeText, "Text", {
+        text = "00:00",
+        color = 2
+    })
+    setUpdateFunction(timeText, .5, function()
+    
+        component.TextView.getFor(timeText).text = getTimeString()
+    
+    end, false)
+
+
     local stage = 0
 
     function canFly()
@@ -100,6 +152,8 @@ function create(hud, args)
         100 -- :(
     }
 
+    local totalEnergyEver = 0
+
     local energy = 0
     local energyNeeded = 0
     function setStage(stage)
@@ -116,6 +170,7 @@ function create(hud, args)
     _G.increaseEnergyMeter = function()
         
         energy = energy + 1
+        totalEnergyEver = totalEnergyEver + 1
         local frame = math.floor(energy / energyNeeded * 16)
         if frame == 0 and energy > 0 then
             frame = 1
@@ -134,7 +189,7 @@ function create(hud, args)
         end
     end
 
-    _G.showGameOverPopup = function(score)
+    _G.showGameOverPopup = function(won)
         local popup = createEntity()
         setName(popup, "gameover popup")
         setComponents(popup, {
@@ -152,25 +207,60 @@ function create(hud, args)
                 centerAlign = true
             }
         })
-        applyTemplate(createChild(popup, "gameovertext"), "Text", {
-            text = "GAME OVER!\n",
-            waving = true,
-            wavingFrequency = .2,
-            wavingSpeed = 20,
-            wavingAmplitude = 2,
-            lineSpacing = 10
-        })
-        applyTemplate(createChild(popup, "scoretext"), "Text", {
-            text = "Your score: "..score.."\n",
-            lineSpacing = 10,
-            color = colors.brick--5,
-        })
-        applyTemplate(createChild(popup, "retrybutton"), "Button", {
-            text = "Retry",
-            action = _G.retryLevel,
-            center = true,
-            fixedWidth = 80
-        })
+        
+        
+        if not won then
+
+        
+            applyTemplate(createChild(popup, "gameovertext"), "Text", {
+                text = "GAME OVER!\nGotta delay your death!",
+                waving = true,
+                wavingFrequency = .2,
+                wavingSpeed = 20,
+                wavingAmplitude = 2,
+                lineSpacing = 0
+            })
+
+            
+            applyTemplate(createChild(popup, "scoretext"), "Text", {
+                text = "Your score: "..totalEnergyEver.."\n",
+                lineSpacing = 10,
+                color = colors.brick--5,
+            })
+        
+
+            applyTemplate(createChild(popup, "retrybutton"), "Button", {
+                text = "Retry",
+                action = _G.retryLevel,
+                center = true,
+                fixedWidth = 80
+            })
+        else
+
+            applyTemplate(createChild(popup, "gameovertext"), "Text", {
+                text = "You won the game...\nIt was inevitable...",
+                waving = true,
+                wavingFrequency = .04,
+                wavingSpeed = 10,
+                wavingAmplitude = 3,
+                lineSpacing = 0
+            })
+
+            applyTemplate(createChild(popup, "scoretext"), "Text", {
+                text = "Your time: "..getTimeString().."\n",
+                lineSpacing = 10,
+                color = 2,
+            })
+            destroyEntity(timeText)
+            
+            applyTemplate(createChild(popup, "scoretext"), "Text", {
+                text = "Your score: "..totalEnergyEver.."\n",
+                lineSpacing = 10,
+                color = colors.brick--5,
+            })
+        
+
+        end
         applyTemplate(createChild(popup, "menubutton"), "Button", {
             text = "Main menu",
             action = _G.goToMainMenu,

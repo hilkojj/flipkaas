@@ -7,13 +7,13 @@ GIMP Palette
 255 247 104	grass_dark
 255   5  22	brick
  55  39  60	brick_dark
-  0 247 152	string
+  0 255 124	string
 236 150 123	skin
   1 133 144	hat
 233  55  93	rainbow_red
 255 179  83	rainbow_orange
 255 247 104	rainbow_yellow
- 81 255 112	rainbow_green
+  9 195 100	rainbow_green
  77 179 255	rainbow_blue
 253 132 255	rainbow_pink
 255 140  83	fire0

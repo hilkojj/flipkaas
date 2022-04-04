@@ -70,6 +70,7 @@ function create(e, args)
 	
 		local uniforms = component.CustomShader.getFor(e):dirty().uniformsFloat
 		uniforms["biteZ"] = _G.biteZ
+		--print(uniforms["biteZ"])
 	
 	end)
 
@@ -88,7 +89,7 @@ function create(e, args)
 
 			if holeDir ~= vec3(0) then
 				
-				setTimeout(e, 1., function()
+				setTimeout(e, 1.4, function()
 					
 					local appleTrans = component.Transform.getFor(e)
 
