@@ -68,3 +68,4 @@ Settings @not_a_component @json_with_keys:
   gamepadInput: GamepadInputSettings
   customSettings: [ json, json::object() ]
   limitUpdatesPerSec: [ bool, false ]
+  showDeveloperOptions: [ bool, false ]

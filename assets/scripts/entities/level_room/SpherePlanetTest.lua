@@ -101,7 +101,13 @@ function create(e, args)
 						Transform {
 							position = appleTrans.position,
 							rotation = rot
-						}
+						},
+						SoundSpeaker {
+							sound = "sounds/wee",
+							pitch = math.random(7, 11) / 10,
+							volume = .3
+						},
+						PositionedAudio()
 					})
 
 					component.Transform.animate(worm, "position", appleTrans.position + vec3(100) * holeDir, 10, "pow3Out", function()

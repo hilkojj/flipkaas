@@ -79,6 +79,18 @@ function create(e)
             component.Transform.animate(_G.player, "scale", vec3(1, 1.2, 1), .1, "pow2In")
 
             _G.increaseEnergyMeter()
+            setComponents(createEntity(), {
+
+                DespawnAfter {
+                    time = 3
+                },
+                SoundSpeaker {
+                    sound = "sounds/energy",
+                    volume = .1,
+                    pitch = math.random(7, 11) / 10
+                },
+
+            })
 
             setTimeout(e, .1, function()
                 component.Transform.animate(e, "position", trans.position + dir * vec3(-2), .3, "pow2")

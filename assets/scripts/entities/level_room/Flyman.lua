@@ -174,6 +174,38 @@ function create(player)
             }
         })
 
+        setComponents(createEntity(), {
+
+            DespawnAfter {
+                time = 3
+            },
+            Transform {
+                position = component.Transform.getFor(player).position
+            },
+            SoundSpeaker {
+                sound = "sounds/ouch",
+                volume = .05,
+                pitch = 1.1
+            },
+            --PositionedAudio()
+
+        })
+        setComponents(createEntity(), {
+
+            DespawnAfter {
+                time = 3
+            },
+            Transform {
+                position = component.Transform.getFor(player).position
+            },
+            SoundSpeaker {
+                sound = "sounds/blood/short0",
+                volume = 3.
+            },
+            PositionedAudio()
+
+        })
+
         setTimeout(player, 1., function()
         
             component.CustomShader.remove(player)
@@ -231,6 +263,8 @@ function create(player)
 
     local enteringStage = false
 
+    local timeSinceLanding = 0
+
     onEntityEvent(player, "Collision", function (col)
         
         if col.otherCategoryBits & masks.STATIC_TERRAIN ~= 0 and (col.impact > 20 or enteringStage) then
@@ -249,6 +283,27 @@ function create(player)
                 timer = 3/24
             })
             print(col.impact)
+
+            if getTime() - timeSinceLanding > .1 then
+
+                setComponents(createEntity(), {
+
+                    DespawnAfter {
+                        time = 3
+                    },
+                    SoundSpeaker {
+                        sound = "sounds/landing",
+                        volume = .01,
+                        pitch = 1.2
+                    },
+
+                })
+
+                timeSinceLanding = getTime()
+
+            end
+
+            
         end
 	end)
 
@@ -339,6 +394,16 @@ function create(player)
             name = "Flying",
             loop = true,
             timeMultiplier = 1.5
+        })
+        setComponents(player, {
+
+            SoundSpeaker {
+                sound = "sounds/fly",
+                volume = 0.2,
+                pitch = 1.2,
+                looping = true
+            }
+
         })
 
         component.SphereColliderShape.remove(player)
@@ -454,10 +519,10 @@ function create(player)
         
             if stage3Bites == 0 then
 
-                setTimeout(player, 10, function()
+                setTimeout(player, 16, function()
                 
                     _G.bite(460 + _G.biteZ)
-                    setTimeout(player, 12, function()
+                    setTimeout(player, 14, function()
                         if arrivedStage == 3 then
                             checkIfNeedToBite()
                         end
@@ -507,6 +572,18 @@ function create(player)
             timeMultiplier = 2
         })
         enteringStage = true
+        setComponents(createEntity(), {
+
+            DespawnAfter {
+                time = 3
+            },
+            SoundSpeaker {
+                sound = "sounds/helicopter_landing",
+                volume = 1.
+            },
+
+        })
+        component.SoundSpeaker.remove(player)
 
         local body = component.RigidBody.getFor(player):dirty()
         body.collider:dirty().collideWithMaskBits = defaultCollideMask

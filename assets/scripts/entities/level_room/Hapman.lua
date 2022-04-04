@@ -68,6 +68,23 @@ function create(hapman)
             name = "Bite",
             loop = false
         })
+        setTimeout(hapman, 0, function()
+            setComponents(createEntity(), {
+
+                DespawnAfter {
+                    time = 10
+                },
+                Transform {
+                    position = component.Transform.getFor(hapman).position
+                },
+                SoundSpeaker {
+                    sound = "sounds/growl2",
+                    volume = .1,
+                },
+                PositionedAudio()
+
+                })
+        end)
 
         setTimeout(hapman, biteTimeout, function ()
         
@@ -95,6 +112,21 @@ function create(hapman)
 		            SphereColliderShape {
 			            radius = 102
 		            }
+                })
+                setComponents(createEntity(), {
+
+                    DespawnAfter {
+                        time = 3
+                    },
+                    Transform {
+                        position = component.Transform.getFor(hapman).position
+                    },
+                    SoundSpeaker {
+                        sound = "sounds/blood/long",
+                        volume = .6,
+                    },
+                    --PositionedAudio()
+
                 })
 
                 onEntityEvent(biteSensor, "Collision", function (col)
