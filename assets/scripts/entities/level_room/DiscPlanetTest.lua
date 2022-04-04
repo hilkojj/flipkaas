@@ -46,7 +46,7 @@ function create(e, args)
 	component.Transform.getFor(e).scale = vec3(1)
 
 	
-	setUpdateFunction(e, .1, function()
+	setUpdateFunction(e, .05, function()
 	
 		local uniforms = component.CustomShader.getFor(e):dirty().uniformsFloat
 		uniforms["biteZ"] = _G.biteZ

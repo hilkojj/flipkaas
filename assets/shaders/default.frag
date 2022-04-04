@@ -47,6 +47,31 @@ uniform float biteZ;
 uniform float cartoonyFresnel;
 #endif
 
+#ifdef APPLE
+
+uniform vec3 holeDir0;
+uniform vec3 holeDir1;
+uniform vec3 holeDir2;
+uniform vec3 holeDir3;
+uniform vec3 holeDir4;
+uniform vec3 holeDir5;
+uniform vec3 holeDir6;
+uniform vec3 holeDir7;
+
+
+uniform float holeTime0;
+uniform float holeTime1;
+uniform float holeTime2;
+uniform float holeTime3;
+uniform float holeTime4;
+uniform float holeTime5;
+uniform float holeTime6;
+uniform float holeTime7;
+
+in vec3 v_modelPosition;
+
+#endif
+
 uniform float time;
 
 uniform vec3 diffuse;
@@ -254,6 +279,30 @@ void dirShadowLightRadiance(DirectionalShadowLight light, vec3 N, vec3 V, vec3 F
 
 // --------------------------------------------
 
+#ifdef APPLE
+
+void handleHole(vec3 dir, float spawnTime)
+{
+
+    if (length(dir) < .1f || length(v_modelPosition - v_position) > 19.f)
+        return;
+
+    float age = clamp((time - spawnTime) / 5.f, 0.f, 1.f);
+
+    vec3 localDir = normalize(v_position - v_modelPosition);
+    float holeDot = dot(localDir, dir);
+    bool isHole = holeDot > mix(1.f, .965f, age) && holeDot > mix(1.f, .99f, .8f - age);
+
+    if (isHole)
+    {
+        colorOut.rgb = vec3(.1f);
+    }
+
+}
+
+#endif
+
+
 void main()
 {
     #ifdef BITE
@@ -261,7 +310,6 @@ void main()
     if (biteDiff > 0.f)
         discard;
     #endif
-
 
     vec3 albedo = diffuse;
     if (useDiffuseTexture == 1)
@@ -391,6 +439,17 @@ void main()
 
     #else
     colorOut.a = 1.;
+    #endif
+    
+    #ifdef APPLE
+    handleHole(holeDir0, holeTime0);
+    handleHole(holeDir1, holeTime1);
+    handleHole(holeDir2, holeTime2);
+    handleHole(holeDir3, holeTime3);
+    handleHole(holeDir4, holeTime4);
+    handleHole(holeDir5, holeTime5);
+    handleHole(holeDir6, holeTime6);
+    handleHole(holeDir7, holeTime7);
     #endif
 
     #if BLOOM

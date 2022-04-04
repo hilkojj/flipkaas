@@ -88,6 +88,33 @@ void Room3D::initializeLuaEnvironment()
     luaEnvironment["getTime"] = [&] {
         return getLevel().getTime();
     };
+    luaEnvironment["getAppleHoleDir"] = [&](int holeI, entt::entity target, entt::entity apple, quat &rot) {
+
+        if (!entities.valid(target) || !entities.has<Transform>(target) || !entities.valid(apple))
+            return mu::ZERO_3;
+
+        vec3 applePos = entities.get_or_assign<Transform>(apple).position;
+        vec3 targetPos = entities.get_or_assign<Transform>(target).position;
+
+        float dist = length(applePos - targetPos);
+
+        if (dist < .1f || dist > 20)
+            return mu::ZERO_3;
+
+        vec3 dir = (targetPos - applePos) / dist;
+
+        float r = 1.;
+
+        vec3 outDir = normalize(vec3(mu::random(-r, r), mu::random(-r, r), mu::random(-r, r)) + dir);
+
+
+        if (abs(outDir.y) > .99)
+            return mu::ZERO_3;
+
+        rot = quatLookAt(outDir, mu::Y);
+
+        return outDir;
+    };  
 }
 
 void decomposeMtx(const mat4 &m, vec3 &pos, quat &rot, vec3 &scale)

@@ -3,16 +3,20 @@ persistenceMode(TEMPLATE | ARGS, {"Transform"})
 
 collisionMasks = include("scripts/entities/level_room/_masks")
 
-loadColliderMeshes("assets/models/donut.obj", false)
+loadColliderMeshes("assets/models/plate.obj", false)
 
+defaultArgs({
+})
 
 function create(e, args)
+
+	args.radius = 32
+	args.gravityRadius = 24
 	
-    setName(e, "donut planet")
+    setName(e, "plate planet")
 	
 	local grav = createChild(e, "gravity field")
-	local donutRadius = 24
-	local gravityRadius = 25
+
 
 	setComponents(e, {
 		RigidBody {
@@ -25,10 +29,10 @@ function create(e, args)
 			}
 		},
 		ConcaveColliderShape {
-			meshName = "Donut"
+			meshName = "Plate"
 		},
 		RenderModel {
-			modelName = "Donut"
+			modelName = "Plate"
 		},
 		CustomShader {
             vertexShaderPath = "shaders/default.vert",
@@ -39,7 +43,7 @@ function create(e, args)
 		ShadowCaster(),
 		ShadowReceiver()
 	})
-	--component.Transform.getFor(e).scale = vec3(donutRadius)
+	component.Transform.getFor(e).scale = vec3(1)
 
 	
 	setUpdateFunction(e, .05, function()
@@ -64,47 +68,37 @@ function create(e, args)
 			}
 		},
 		BoxColliderShape {
-			halfExtents = vec3(donutRadius + gravityRadius, gravityRadius, donutRadius + gravityRadius)
+			halfExtents = vec3(args.radius + args.gravityRadius, args.radius + args.gravityRadius, args.radius + args.gravityRadius)
 		},
+		--[[
 		GravityField {
 			priority = 0
 		},
-		DonutGravityFunction {
-			donutRadius = donutRadius,
-			gravityRadius = gravityRadius
+		DiscGravityFunction {
+			radius = args.radius,
+			gravityRadius = args.gravityRadius,
+			spherish = 0
 		}
+		]]--
 	})
+
 	local playerEntered = false
 	onEntityEvent(grav, "Collision", function (col)
 
 		if col.otherEntity == _G.player and not playerEntered and getTime() > .1 then
 
-			setUpdateFunction(grav, 0, function()
-		
-				local affected = component.GravityFieldAffected.getFor(_G.player)
 
-				if affected.fields[1] == grav then
+			print("arrived at plate!!!!")
 
-					print("arrived at donut")
+			component.DirectionalLight.animate(getByName("sun"), "color", vec3(80, 0, 0), 10)
 	
-					playerEntered = true
-					_G.arrivedAtStage()
-					setUpdateFunction(grav, 0, nil)
-				end
-		
-			end)
+			playerEntered = true
+			_G.arrivedAtStage()
 		end		
 
 
 	end)
-	onEntityEvent(grav, "CollisionEnded", function (col)
-
-		if col.otherEntity == _G.player then
-
-			setUpdateFunction(grav, 0, nil)
-		end		
 
 
-	end)
 
 end

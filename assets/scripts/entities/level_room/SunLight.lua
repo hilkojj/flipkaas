@@ -6,6 +6,6 @@ function create(sun)
     setName(sun, "sun")
 
     component.Transform.getFor(sun) -- might be loaded already.
-    component.DirectionalLight.getFor(sun) -- might be loaded already.
+    component.DirectionalLight.getFor(sun).color = vec3(40) -- might be loaded already.
 
 end

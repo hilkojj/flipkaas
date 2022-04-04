@@ -16,7 +16,7 @@ function create(player)
 
     setComponents(player, {
         Transform {
-            position = vec3(0, 10, 0)
+            position = vec3(0, 10, 0)---480)
         },
         RenderModel {
             modelName = "Flyman",
@@ -83,7 +83,7 @@ function create(player)
     })
 
     local cam = getByName("3rd_person_camera")
-    local defaultBossInfluence = .66
+    local defaultBossInfluence = .73
     if valid(cam) then
         setComponents(cam, {
             ThirdPersonFollowing {
@@ -147,14 +147,15 @@ function create(player)
         })
 	end)
 
-    _G.playerHealth = 4
+    _G.playerHealth = 5
     local prevHitTime = getTime()
+    local flying = false
 
     _G.playerHit = function(damage)
         
         local timeElapsed = getTime() - prevHitTime
 
-        if timeElapsed < 1.5 then
+        if timeElapsed < 1.5 or (flying and damage == 1) then
             return
         end
 
@@ -259,12 +260,16 @@ function create(player)
 
     local flyStarts = {
         vec3(0, 27, -50),
-        vec3(0, 35, -215)
+        vec3(0, 35, -215),
+        vec3(0, 46, -394),
+        vec3(0, 46, -680),
     }
     local stageCamDists = {
         vec2(20, 11),
-        vec2(42, 27),
-        vec2(30, 16)
+        vec2(35, 27),
+        vec2(30, 16),
+        vec2(5, 24),
+        vec2(52, 22)
     }
 
     _G.goFly = function(to)
@@ -276,9 +281,10 @@ function create(player)
             return
         end
 
+        flying = true
         local transitionDuration = 2
 
-        component.Transform.animate(player, "position", flyStarts[to], transitionDuration, "pow2")
+        component.Transform.animate(player, "position", flyStarts[to], arrivedStage ~= 3 and transitionDuration or 10, "pow2")
         local body = component.RigidBody.getFor(player):dirty()
         body.collider:dirty().collideWithMaskBits = 0
         body.mass = 0
@@ -318,6 +324,7 @@ function create(player)
     local stage0Bites = 0
     local stage1Bites = 0
     local stage2Bites = 0
+    local stage3Bites = 0
 
     local checkIfNeedToBite = nil
     checkIfNeedToBite = function()
@@ -358,8 +365,8 @@ function create(player)
 
                 setTimeout(player, 3, function()
                 
-                    _G.bite(120 + _G.biteZ)
-                    setTimeout(player, 15, function()
+                    _G.bite(140 + _G.biteZ)
+                    setTimeout(player, 9, function()
                         if arrivedStage == 1 then
                             checkIfNeedToBite()
                         end
@@ -369,7 +376,7 @@ function create(player)
 
             elseif stage1Bites == 1 then
 
-                _G.bite(30)
+                _G.bite(10)
                 setTimeout(player, 9, function()
                     if arrivedStage == 1 then
                         checkIfNeedToBite()
@@ -386,9 +393,9 @@ function create(player)
         
             if stage2Bites == 0 then
 
-                setTimeout(player, 5, function()
+                setTimeout(player, 3.7, function()
                 
-                    _G.bite(310 + _G.biteZ)
+                    _G.bite(320 + _G.biteZ)
                     setTimeout(player, 12, function()
                         if arrivedStage == 2 then
                             checkIfNeedToBite()
@@ -399,7 +406,7 @@ function create(player)
 
             elseif stage2Bites == 1 then
 
-                _G.bite(20)
+                _G.bite(10)
                 setTimeout(player, 9, function()
                     if arrivedStage == 2 then
                         checkIfNeedToBite()
@@ -412,6 +419,36 @@ function create(player)
 
             end
             stage2Bites = stage2Bites + 1
+        elseif arrivedStage == 3 then
+        
+            if stage3Bites == 0 then
+
+                setTimeout(player, 20, function()
+                
+                    _G.bite(460 + _G.biteZ)
+                    setTimeout(player, 16, function()
+                        if arrivedStage == 3 then
+                            checkIfNeedToBite()
+                        end
+                    end)
+                end)
+
+
+            elseif stage3Bites == 1 then
+
+                _G.bite(30)
+                setTimeout(player, 12, function()
+                    if arrivedStage == 3 then
+                        checkIfNeedToBite()
+                    end
+                end)
+
+            elseif stage3Bites == 2 then
+
+                _G.bite(30)
+
+            end
+            stage3Bites = stage3Bites + 1
         end
         
     end
@@ -421,8 +458,10 @@ function create(player)
     _G.arrivedAtStage = function()
         arrivedStage = _G.getStage()
 
+        flying = false
+
         if valid(cam) then
-            component.ThirdPersonFollowing.animate(cam, "bossInfluence", defaultBossInfluence, 5, "pow2")
+            component.ThirdPersonFollowing.animate(cam, "bossInfluence", arrivedStage ~= 3 and defaultBossInfluence or 0., 2.5, "pow2")
             component.ThirdPersonFollowing.animate(cam, "backwardsDistance", stageCamDists[arrivedStage + 1].x, 5, "pow2")
             component.ThirdPersonFollowing.animate(cam, "upwardsDistance", stageCamDists[arrivedStage + 1].y, 5, "pow2")
         end
@@ -450,6 +489,8 @@ function create(player)
     setTimeout(player, .1, _G.arrivedAtStage) -- banana
 
 
+    --[[
+    -- TODO: remove this:
     listenToGamepadButton(player, 0, gameSettings.gamepadInput.test, "test")
     onEntityEvent(player, "test_pressed", function()
         local energyyyy = createEntity()
@@ -458,5 +499,6 @@ function create(player)
         component.Transform.getFor(energyyyy).rotation = component.Transform.getFor(player).rotation
         component.Transform.getFor(energyyyy).scale = component.Transform.getFor(player).scale
     end)
+    ]]--
 end
 

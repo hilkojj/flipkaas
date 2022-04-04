@@ -68,7 +68,7 @@ function create(e)
 
     end
 
-    setUpdateFunction(e, .8, function()
+    setUpdateFunction(e, .95, function()
     
         local cannonTrans = component.Transform.getFor(e)
 

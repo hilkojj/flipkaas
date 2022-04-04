@@ -95,7 +95,9 @@ function create(hud, args)
     local stageEnergies = {
         5,
         6,
-        5
+        5,
+        15,
+        100 -- :(
     }
 
     local energy = 0
