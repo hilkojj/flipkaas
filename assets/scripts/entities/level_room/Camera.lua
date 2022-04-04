@@ -1,5 +1,5 @@
 
-persistenceMode(TEMPLATE | ARGS) --, {"Transform"})
+persistenceMode(TEMPLATE | ARGS, {"Transform"})
 
 defaultArgs({
     setAsMain = false,

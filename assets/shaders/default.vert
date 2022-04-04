@@ -32,6 +32,9 @@ uniform float time;
 uniform float time;
 out vec3 v_modelPosition;
 #endif
+#ifdef TITLE
+uniform float time;
+#endif
 
 void main()
 {
@@ -76,5 +79,10 @@ void main()
     v_TBN = mat3(tangent, bitan, normal);
     #if FOG
     v_fog = 1. - max(0., min(1., (length(v_position - camPosition) - FOG_START) / (FOG_END - FOG_START)));
+
+    #ifdef TITLE
+    v_fog = clamp(((position.z * 30.f + 50.f) / 30.f), 0.f, 1.f);
+    #endif
+
     #endif
 }

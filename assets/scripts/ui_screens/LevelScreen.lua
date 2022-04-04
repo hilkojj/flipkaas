@@ -34,24 +34,12 @@ _G.goToMainMenu = function()
     end)
 end
 
-
-if _G.levelToLoad == nil then
-    error("_G.levelToLoad is nil")
-end
-
 local levelRestarter = createEntity()
 listenToKey(levelRestarter, gameSettings.keyInput.retryLevel, "retry_key")
 onEntityEvent(levelRestarter, "retry_key_pressed", _G.retryLevel)
 
-loadOrCreateLevel(_G.levelToLoad)
+loadOrCreateLevel("assets/levels/default_level.lvl")
 
-setComponents(createEntity(), {
-    UIElement(),
-    TextView {
-        text = "LDJam 50 - Theme ???",
-        fontSprite = "sprites/ui/default_font"
-    }
-})
 applyTemplate(createEntity(), "HUD")
 
 endScreenTransition("transitions/screen_transition1", "shaders/ui/transition_cutoff")

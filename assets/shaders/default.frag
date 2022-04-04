@@ -470,6 +470,11 @@ void main()
         brightColor.rgb += vec3(colorOut.rgb) * (sin(time * 2.5f) + 1.f) * .4f;
     #endif
 
+    #ifdef TITLE
+    if (albedo.b < .6f && albedo.g > .1f)
+        brightColor.rgb += vec3(colorOut.rgb) * (sin((v_position.x + v_position.y) * 3.f + time * 2.f) + 1.f) * .5f;
+    #endif
+
     #ifdef DAMAGE
 
     brightColor.r += clamp(sin(time * 30.f) * 100.f, 0.f, 3.f);
