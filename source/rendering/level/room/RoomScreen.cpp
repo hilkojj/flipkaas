@@ -362,6 +362,9 @@ void RoomScreen::updateInstancedModels()
 {
     room->entities.view<RenderModel, InstancedRendering>().each([&](auto e, RenderModel &rm, InstancedRendering &instanced) {
 
+        if (room->getByName("instanced dead flies") != entt::null && room->getByName("instanced dead flies") != e)
+            return;
+
         if (!instanced.anyDirty() && instanced.staticTransforms)
             return;
 
@@ -636,6 +639,9 @@ void RoomScreen::renderModel(const RenderContext &con, ShaderProgram &shader, en
 
 void RoomScreen::renderInstancedModels(const RenderContext &con, ShaderProgram &shader, entt::entity e, const RenderModel &rm, const Room3D::ModelInstances &mi)
 {
+    if (room->getByName("instanced dead flies") != entt::null && room->getByName("instanced dead flies") != e)
+        return;
+
     if (!(rm.visibilityMask & con.mask))
         return;
 

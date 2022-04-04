@@ -38,7 +38,7 @@ function create(e, args)
             vertexShaderPath = "shaders/default.vert",
             fragmentShaderPath = "shaders/default.frag",
             defines = {BITE = "1"},
-			uniformsFloat = { biteZ = 75, cartoonyFresnel = 1. },
+			uniformsFloat = { biteZ = 75, cartoonyFresnel = .3 },
         },
 		ShadowCaster(),
 		ShadowReceiver()
@@ -87,11 +87,8 @@ function create(e, args)
 
 		if col.otherEntity == _G.player and not playerEntered and getTime() > .1 then
 
-
 			print("arrived at plate!!!!")
 
-			component.DirectionalLight.animate(getByName("sun"), "color", vec3(80, 0, 0), 10)
-	
 			playerEntered = true
 			_G.arrivedAtStage()
 		end		

@@ -8,7 +8,7 @@ function create(player)
 
     _G.player = player
 
-    local defaultCollideMask = masks.STATIC_TERRAIN | masks.SENSOR
+    local defaultCollideMask = masks.STATIC_TERRAIN | masks.SENSOR | masks.DYNAMIC_PROPS
     local defaultMass = 1
     local defaultJumpForce = 1200
     local defaultWalkSpeed = 13
@@ -72,7 +72,7 @@ function create(player)
             }
 		},
         DirectionalLight {
-            color = vec3(-.7)
+            color = vec3(-.9)
         },
         ShadowRenderer {
             visibilityMask = masks.PLAYER,
@@ -147,7 +147,7 @@ function create(player)
         })
 	end)
 
-    _G.playerHealth = 5
+    _G.playerHealth = 3
     local prevHitTime = getTime()
     local flying = false
 
@@ -269,7 +269,7 @@ function create(player)
         vec2(35, 27),
         vec2(30, 16),
         vec2(5, 24),
-        vec2(52, 22)
+        vec2(65, 26)
     }
 
     _G.goFly = function(to)
@@ -284,16 +284,50 @@ function create(player)
         flying = true
         local transitionDuration = 2
 
-        component.Transform.animate(player, "position", flyStarts[to], arrivedStage ~= 3 and transitionDuration or 10, "pow2")
+        if to == 4 then
+            component.DirectionalLight.animate(getByName("sun"), "color", vec3(4, 4, 4), 10)
+            local ttttttdddddddd = 15
+            component.Transform.animate(player, "position", flyStarts[to], ttttttdddddddd)
+
+            component.GravityFieldAffected.remove(player)
+            component.RigidBody.getFor(player):dirty().gravity = vec3(0, -1, 0)
+            
+            setTimeout(player, 30, function()
+                _G.bite(190)
+            end)
+            
+            if valid(cam) then
+                component.ThirdPersonFollowing.getFor(player).boss = getByName("plate planet")
+                component.ThirdPersonFollowing.animate(cam, "bossInfluence", 0.8, transitionDuration, "pow2")
+                component.ThirdPersonFollowing.animate(cam, "backwardsDistance", 22, transitionDuration, "pow2")
+                component.ThirdPersonFollowing.animate(cam, "upwardsDistance", 13, transitionDuration, "pow2")
+            end
+
+            setTimeout(player, ttttttdddddddd, function()
+                print("hello.. its me... again...")
+                component.RigidBody.getFor(player):dirty().gravity = vec3(0, -30, 0)
+                component.ThirdPersonFollowing.getFor(cam).boss = getByName("Hapman")
+            end)
+
+            local deadFlies = createEntity()
+            applyTemplate(deadFlies, "DeadFlies")
+
+        else
+
+            component.Transform.animate(player, "position", flyStarts[to], transitionDuration, "pow2")
+            
+            if valid(cam) then
+                component.ThirdPersonFollowing.animate(cam, "bossInfluence", 0, transitionDuration, "pow2")
+                component.ThirdPersonFollowing.animate(cam, "backwardsDistance", 22, transitionDuration, "pow2")
+                component.ThirdPersonFollowing.animate(cam, "upwardsDistance", 13, transitionDuration, "pow2")
+            end
+
+
+        end
+
         local body = component.RigidBody.getFor(player):dirty()
         body.collider:dirty().collideWithMaskBits = 0
         body.mass = 0
-
-        if valid(cam) then
-            component.ThirdPersonFollowing.animate(cam, "bossInfluence", 0, transitionDuration, "pow2")
-            component.ThirdPersonFollowing.animate(cam, "backwardsDistance", 22, transitionDuration, "pow2")
-            component.ThirdPersonFollowing.animate(cam, "upwardsDistance", 13, transitionDuration, "pow2")
-        end
 
         
         component.Rigged.getFor(player).playingAnimations:clear()
@@ -366,7 +400,7 @@ function create(player)
                 setTimeout(player, 3, function()
                 
                     _G.bite(140 + _G.biteZ)
-                    setTimeout(player, 9, function()
+                    setTimeout(player, 11, function()
                         if arrivedStage == 1 then
                             checkIfNeedToBite()
                         end
@@ -393,10 +427,10 @@ function create(player)
         
             if stage2Bites == 0 then
 
-                setTimeout(player, 3.7, function()
+                setTimeout(player, 0.7, function()
                 
                     _G.bite(320 + _G.biteZ)
-                    setTimeout(player, 12, function()
+                    setTimeout(player, 10, function()
                         if arrivedStage == 2 then
                             checkIfNeedToBite()
                         end
@@ -406,16 +440,11 @@ function create(player)
 
             elseif stage2Bites == 1 then
 
-                _G.bite(10)
-                setTimeout(player, 9, function()
-                    if arrivedStage == 2 then
-                        checkIfNeedToBite()
-                    end
-                end)
+                
+                _G.bite(31)
 
             elseif stage2Bites == 2 then
 
-                _G.bite(21)
 
             end
             stage2Bites = stage2Bites + 1
@@ -423,10 +452,10 @@ function create(player)
         
             if stage3Bites == 0 then
 
-                setTimeout(player, 20, function()
+                setTimeout(player, 10, function()
                 
                     _G.bite(460 + _G.biteZ)
-                    setTimeout(player, 16, function()
+                    setTimeout(player, 12, function()
                         if arrivedStage == 3 then
                             checkIfNeedToBite()
                         end
@@ -436,7 +465,7 @@ function create(player)
 
             elseif stage3Bites == 1 then
 
-                _G.bite(30)
+                _G.bite(60)
                 setTimeout(player, 12, function()
                     if arrivedStage == 3 then
                         checkIfNeedToBite()
