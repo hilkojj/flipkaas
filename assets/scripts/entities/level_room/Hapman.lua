@@ -52,6 +52,7 @@ function create(hapman)
 
         --travel = 0
 
+
         print("initiating bite with travel = "..travel)
 
         biteI = biteI + 1
@@ -62,6 +63,13 @@ function create(hapman)
         local biteTimeout = 147/24
 
         local goalPos = trans.position + vec3(0, 0, -travel)
+
+        
+        if travel == -1 then
+
+            goalPos.z = -641
+
+        end
 	    
         component.Transform.animate(hapman, "position", goalPos, travelDuration, "pow3")
         component.Rigged.getFor(hapman).playingAnimations:add(PlayAnimation {

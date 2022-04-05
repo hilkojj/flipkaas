@@ -352,7 +352,7 @@ function create(player)
             component.RigidBody.getFor(player):dirty().gravity = vec3(0, -1, 0)
             
             setTimeout(player, 30, function()
-                _G.bite(85 + 178 + 460 + _G.biteZ)
+                _G.bite(-1)
             end)
             
             if valid(cam) then
