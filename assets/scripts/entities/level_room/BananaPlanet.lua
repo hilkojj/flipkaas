@@ -33,7 +33,12 @@ function create(e, args)
 			uniformsFloat = { biteZ = 75, cartoonyFresnel = 1. },
         },
 		ShadowCaster(),
-		ShadowReceiver()
+		ShadowReceiver(),
+		SoundSpeaker {
+            sound = "sounds/soundtrack",
+            volume = .025,
+			looping = true
+        }
 	})
 	component.Transform.getFor(e)
 

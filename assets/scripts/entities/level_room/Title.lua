@@ -14,6 +14,12 @@ function create(title)
             fragmentShaderPath = "shaders/default.frag",
             defines = {TITLE = "1"}
         },
+        --[[
+        SoundSpeaker {
+            sound = "sounds/soundtrack",
+            volume = .25
+        }
+        ]]--
     })
 
 end
