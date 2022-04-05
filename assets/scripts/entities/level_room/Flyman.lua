@@ -352,7 +352,7 @@ function create(player)
             component.RigidBody.getFor(player):dirty().gravity = vec3(0, -1, 0)
             
             setTimeout(player, 30, function()
-                _G.bite(140 + 178 + 460 + _G.biteZ)
+                _G.bite(85 + 178 + 460 + _G.biteZ)
             end)
             
             if valid(cam) then
@@ -532,7 +532,7 @@ function create(player)
 
             elseif stage3Bites == 1 then
 
-                _G.bite(60)
+                --_G.bite(60)
                 setTimeout(player, 12, function()
                     if arrivedStage == 3 then
                         checkIfNeedToBite()
@@ -541,7 +541,7 @@ function create(player)
 
             elseif stage3Bites == 2 then
 
-                _G.bite(30)
+                --_G.bite(30)
 
             end
             stage3Bites = stage3Bites + 1

@@ -55,7 +55,7 @@ void main()
     #ifdef APPLE
 
     float xInfluence = clamp(position.x / 10.f, 0.f, 1.f);
-    if (position.y > 19)
+    if (position.y > 19.f)
     {
         position.y += sin(time * -1.5f + position.x * 1.f) * xInfluence * .4f;
 
